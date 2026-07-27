@@ -19,9 +19,11 @@ def create_app():
     login_manager.login_message = "Please log in to access your dashboard."
 
     from app.auth import auth_bp
+    from app.files import files_bp
     from app.models import User
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(files_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
