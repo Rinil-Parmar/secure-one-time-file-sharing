@@ -87,7 +87,9 @@ def create_app(config_override=None):
             "base-uri 'self'; "
             "form-action 'self'",
         )
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        # Flask-WTF validates the referrer for HTTPS form submissions.
+        # Preserve same-origin referrers while withholding them cross-origin.
+        response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
