@@ -9,13 +9,14 @@ from app.models import User
 
 @pytest.fixture()
 def app(tmp_path):
-    app = create_app()
-    app.config.update(
-        TESTING=True,
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{tmp_path / 'test.db'}",
-        UPLOAD_FOLDER=tmp_path / "uploads",
-        ENCRYPTION_KEY="test-encryption-key",
-        SECRET_KEY="test-secret-key",
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'test.db'}",
+            "UPLOAD_FOLDER": tmp_path / "uploads",
+            "ENCRYPTION_KEY": "test-encryption-key",
+            "SECRET_KEY": "test-secret-key",
+        }
     )
 
     with app.app_context():
