@@ -1,15 +1,16 @@
 from datetime import timedelta
 import hashlib
+from io import BytesIO
 from pathlib import Path
 import secrets
 from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.crypto_utils import encrypt_bytes
+from app.crypto_utils import decrypt_bytes, encrypt_bytes
 from app.models import ShareLink, StoredFile, utc_now
 
 
@@ -80,4 +81,38 @@ def upload():
 @files_bp.route("/download/<token>")
 def download(token):
     share_link = ShareLink.query.filter_by(token_hash=hash_token(token)).first()
-    return render_template("download.html", share_link=share_link)
+    if share_link is None:
+        return render_template(
+            "download.html",
+            title="Invalid link",
+            message="This download link is not recognized.",
+        ), 404
+
+    if share_link.expires_at <= utc_now():
+        return render_template(
+            "download.html",
+            title="Link expired",
+            message="This download link has expired.",
+        ), 410
+
+    stored_file = share_link.file
+    stored_path = Path(current_app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
+    if not stored_path.exists():
+        return render_template(
+            "download.html",
+            title="File unavailable",
+            message="The encrypted file could not be found on the server.",
+        ), 404
+
+    ciphertext = stored_path.read_bytes()
+    plaintext = decrypt_bytes(
+        ciphertext,
+        stored_file.nonce,
+        current_app.config["ENCRYPTION_KEY"],
+    )
+
+    return send_file(
+        BytesIO(plaintext),
+        as_attachment=True,
+        download_name=stored_file.original_filename,
+    )

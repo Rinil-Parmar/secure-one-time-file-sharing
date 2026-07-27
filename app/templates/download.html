@@ -7,17 +7,8 @@
     <div class="auth-card card border-0 shadow-sm">
         <div class="card-body p-4 p-md-5">
             <p class="eyebrow">Secure download</p>
-            {% if share_link %}
-                <h1 class="h3 mb-2">Link found</h1>
-                <p class="text-secondary mb-0">
-                    This secure link exists. Download validation and one-time access will be implemented next.
-                </p>
-            {% else %}
-                <h1 class="h3 mb-2">Invalid link</h1>
-                <p class="text-secondary mb-0">
-                    This download link is not recognized.
-                </p>
-            {% endif %}
+            <h1 class="h3 mb-2">{{ title }}</h1>
+            <p class="text-secondary mb-0">{{ message }}</p>
         </div>
     </div>
 </section>
