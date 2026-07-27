@@ -111,6 +111,29 @@ def create_link(file_id):
     return redirect(url_for("dashboard"))
 
 
+@files_bp.route("/links/<int:link_id>/revoke", methods=["POST"])
+@login_required
+def revoke_link(link_id):
+    share_link = ShareLink.query.join(StoredFile).filter(
+        ShareLink.id == link_id,
+        StoredFile.owner_id == current_user.id,
+    ).first()
+
+    if share_link is None:
+        flash("Share link not found.", "error")
+        return redirect(url_for("dashboard"))
+
+    if share_link.used_at is not None:
+        flash("That link is already inactive.", "error")
+        return redirect(url_for("dashboard"))
+
+    share_link.used_at = utc_now()
+    db.session.commit()
+
+    flash("Secure link revoked.", "success")
+    return redirect(url_for("dashboard"))
+
+
 @files_bp.route("/download/<token>")
 def download(token):
     share_link = ShareLink.query.filter_by(token_hash=hash_token(token)).first()

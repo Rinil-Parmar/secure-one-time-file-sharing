@@ -104,7 +104,7 @@
                                 {% if file.share_links %}
                                     {% set latest_link = file.share_links[-1] %}
                                     {% if latest_link.used_at %}
-                                        <span class="file-badge badge-used">Used</span>
+                                        <span class="file-badge badge-used">Inactive</span>
                                     {% elif latest_link.expires_at <= now %}
                                         <span class="file-badge badge-expired">Expired</span>
                                     {% else %}
@@ -122,6 +122,14 @@
                                     </select>
                                     <button class="btn btn-outline-primary btn-sm" type="submit">New Link</button>
                                 </form>
+                                {% if file.share_links %}
+                                    {% set latest_link = file.share_links[-1] %}
+                                    {% if latest_link.used_at is none and latest_link.expires_at > now %}
+                                        <form method="post" action="{{ url_for('files.revoke_link', link_id=latest_link.id) }}">
+                                            <button class="btn btn-outline-danger btn-sm w-100" type="submit">Revoke Link</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
