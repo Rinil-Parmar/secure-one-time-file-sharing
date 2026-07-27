@@ -23,7 +23,7 @@ def create_app():
 
     from app.auth import auth_bp
     from app.files import files_bp
-    from app.models import AccessLog, ShareLink, User, utc_now
+    from app.models import AccessLog, ShareLink, StoredFile, User, utc_now
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
@@ -71,6 +71,12 @@ def create_app():
             ensure_schema()
         print("Database schema upgraded.")
 
+    @app.cli.command("cleanup-files")
+    def cleanup_files():
+        with app.app_context():
+            removed = cleanup_inactive_files(app.config["UPLOAD_FOLDER"])
+        print(f"Removed {removed} inactive encrypted file(s).")
+
     return app
 
 
@@ -81,3 +87,31 @@ def ensure_schema():
     if "password_hash" not in column_names:
         db.session.execute(text("ALTER TABLE share_link ADD COLUMN password_hash VARCHAR(255)"))
         db.session.commit()
+
+
+def cleanup_inactive_files(upload_folder):
+    from app.models import StoredFile, utc_now
+
+    now = None
+    removed = 0
+    upload_folder = Path(upload_folder)
+
+    for stored_file in StoredFile.query.all():
+        if not stored_file.share_links:
+            continue
+
+        now = now or utc_now()
+        has_active_link = any(
+            link.used_at is None and link.expires_at > now
+            for link in stored_file.share_links
+        )
+        if has_active_link:
+            continue
+
+        stored_path = upload_folder / stored_file.stored_filename
+        stored_path.unlink(missing_ok=True)
+        db.session.delete(stored_file)
+        removed += 1
+
+    db.session.commit()
+    return removed
