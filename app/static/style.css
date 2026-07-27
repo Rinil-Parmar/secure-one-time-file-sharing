@@ -135,6 +135,7 @@ body {
 
 .toast-stack {
     margin-bottom: 20px;
+    overflow-wrap: anywhere;
 }
 
 .status-list {

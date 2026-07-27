@@ -18,7 +18,7 @@
             <div class="section-heading">
                 <div>
                     <h2>Upload file</h2>
-                    <p>Files are encrypted before they are stored on the server.</p>
+                    <p>Files are encrypted before storage and paired with an expiring secure link.</p>
                 </div>
             </div>
 
@@ -40,7 +40,7 @@
                     <div class="form-text">This setting will be used when the share link is created.</div>
                 </div>
 
-                <button class="btn btn-primary btn-lg" type="submit">Upload File</button>
+                <button class="btn btn-primary btn-lg" type="submit">Upload and Create Link</button>
             </form>
         </section>
     </div>
@@ -71,6 +71,10 @@
                     <span>Encryption at rest</span>
                     <strong>Active</strong>
                 </div>
+                <div class="status-row">
+                    <span>Secure token</span>
+                    <strong>Active</strong>
+                </div>
             </div>
         </section>
 
@@ -78,7 +82,7 @@
             <div class="section-heading">
                 <div>
                     <h2>Shared files</h2>
-                    <p>Uploaded files ready for secure link creation.</p>
+                    <p>Uploaded files and their latest share-link state.</p>
                 </div>
             </div>
             {% if uploaded_files %}
@@ -88,6 +92,10 @@
                             <div>
                                 <strong>{{ file.original_filename }}</strong>
                                 <span>Uploaded {{ file.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+                                {% if file.share_links %}
+                                    {% set latest_link = file.share_links[-1] %}
+                                    <span>Expires {{ latest_link.expires_at.strftime("%Y-%m-%d %H:%M") }}</span>
+                                {% endif %}
                             </div>
                             <span class="file-badge">Encrypted</span>
                         </div>

@@ -1,16 +1,23 @@
+from datetime import timedelta
+import hashlib
 from pathlib import Path
+import secrets
 from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, redirect, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from app import db
 from app.crypto_utils import encrypt_bytes
-from app.models import StoredFile
+from app.models import ShareLink, StoredFile, utc_now
 
 
 files_bp = Blueprint("files", __name__)
+
+
+def hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 @files_bp.route("/upload", methods=["POST"])
@@ -54,7 +61,23 @@ def upload():
         nonce=nonce,
     )
     db.session.add(stored_file)
+    db.session.flush()
+
+    token = secrets.token_urlsafe(32)
+    share_link = ShareLink(
+        file_id=stored_file.id,
+        token_hash=hash_token(token),
+        expires_at=utc_now() + timedelta(minutes=expiration_minutes),
+    )
+    db.session.add(share_link)
     db.session.commit()
 
-    flash("File uploaded and encrypted successfully.", "success")
+    download_url = url_for("files.download", token=token, _external=True)
+    flash(f"File encrypted. Secure link: {download_url}", "success")
     return redirect(url_for("dashboard"))
+
+
+@files_bp.route("/download/<token>")
+def download(token):
+    share_link = ShareLink.query.filter_by(token_hash=hash_token(token)).first()
+    return render_template("download.html", share_link=share_link)
