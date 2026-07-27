@@ -23,7 +23,7 @@ def create_app():
 
     from app.auth import auth_bp
     from app.files import files_bp
-    from app.models import User, utc_now
+    from app.models import AccessLog, ShareLink, User, utc_now
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
@@ -40,7 +40,22 @@ def create_app():
             key=lambda file: file.created_at,
             reverse=True,
         )
-        return render_template("dashboard.html", now=utc_now(), uploaded_files=uploaded_files)
+        file_ids = [file.id for file in uploaded_files]
+        recent_logs = []
+        if file_ids:
+            recent_logs = (
+                AccessLog.query.join(AccessLog.share_link)
+                .filter(ShareLink.file_id.in_(file_ids))
+                .order_by(AccessLog.created_at.desc())
+                .limit(10)
+                .all()
+            )
+        return render_template(
+            "dashboard.html",
+            now=utc_now(),
+            recent_logs=recent_logs,
+            uploaded_files=uploaded_files,
+        )
 
     @app.cli.command("init-db")
     def init_db():
@@ -60,6 +75,7 @@ def create_app():
 
 
 def ensure_schema():
+    db.create_all()
     columns = db.session.execute(text("PRAGMA table_info(share_link)")).fetchall()
     column_names = {column[1] for column in columns}
     if "password_hash" not in column_names:

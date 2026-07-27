@@ -46,6 +46,21 @@ class ShareLink(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
 
     file = db.relationship("StoredFile", back_populates="share_links")
+    access_logs = db.relationship("AccessLog", back_populates="share_link", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<ShareLink file_id={self.file_id}>"
+
+
+class AccessLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    share_link_id = db.Column(db.Integer, db.ForeignKey("share_link.id"), nullable=True, index=True)
+    status = db.Column(db.String(40), nullable=False, index=True)
+    ip_address = db.Column(db.String(80), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
+
+    share_link = db.relationship("ShareLink", back_populates="access_logs")
+
+    def __repr__(self):
+        return f"<AccessLog {self.status}>"

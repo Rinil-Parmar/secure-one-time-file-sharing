@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 
 from app import db
 from app.crypto_utils import decrypt_bytes, encrypt_bytes
-from app.models import ShareLink, StoredFile, utc_now
+from app.models import AccessLog, ShareLink, StoredFile, utc_now
 
 
 files_bp = Blueprint("files", __name__)
@@ -45,6 +45,17 @@ def create_share_link(stored_file, expiration_minutes, password=None):
     )
     db.session.add(share_link)
     return token
+
+
+def log_access(status, share_link=None):
+    user_agent = request.headers.get("User-Agent", "")
+    log_entry = AccessLog(
+        share_link_id=share_link.id if share_link else None,
+        status=status,
+        ip_address=request.remote_addr,
+        user_agent=user_agent[:255],
+    )
+    db.session.add(log_entry)
 
 
 @files_bp.route("/upload", methods=["POST"])
@@ -143,6 +154,8 @@ def revoke_link(link_id):
 def download(token):
     share_link = ShareLink.query.filter_by(token_hash=hash_token(token)).first()
     if share_link is None:
+        log_access("invalid_token")
+        db.session.commit()
         return render_template(
             "download.html",
             title="Invalid link",
@@ -150,6 +163,8 @@ def download(token):
         ), 404
 
     if share_link.expires_at <= utc_now():
+        log_access("expired", share_link)
+        db.session.commit()
         return render_template(
             "download.html",
             title="Link expired",
@@ -157,6 +172,8 @@ def download(token):
         ), 410
 
     if share_link.used_at is not None:
+        log_access("reused", share_link)
+        db.session.commit()
         return render_template(
             "download.html",
             title="Link already used",
@@ -174,6 +191,8 @@ def download(token):
             )
 
         if not check_password_hash(share_link.password_hash, password):
+            log_access("wrong_password", share_link)
+            db.session.commit()
             return render_template(
                 "download.html",
                 title="Password required",
@@ -185,6 +204,8 @@ def download(token):
     stored_file = share_link.file
     stored_path = Path(current_app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
     if not stored_path.exists():
+        log_access("missing_file", share_link)
+        db.session.commit()
         return render_template(
             "download.html",
             title="File unavailable",
@@ -199,6 +220,7 @@ def download(token):
     )
 
     share_link.used_at = utc_now()
+    log_access("success", share_link)
     db.session.commit()
 
     return send_file(

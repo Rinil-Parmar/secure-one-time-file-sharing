@@ -150,6 +150,36 @@
                 </div>
             {% endif %}
         </section>
+
+        <section class="app-card mt-4">
+            <div class="section-heading">
+                <div>
+                    <h2>Recent access attempts</h2>
+                    <p>Security events for your shared files.</p>
+                </div>
+            </div>
+            {% if recent_logs %}
+                <div class="audit-list">
+                    {% for log in recent_logs %}
+                        <div class="audit-row">
+                            <div>
+                                <strong>{{ log.status.replace("_", " ").title() }}</strong>
+                                <span>{{ log.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+                                {% if log.share_link and log.share_link.file %}
+                                    <span>{{ log.share_link.file.original_filename }}</span>
+                                {% endif %}
+                            </div>
+                            <span class="audit-ip">{{ log.ip_address or "Unknown IP" }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <strong>No access attempts yet</strong>
+                    <span>Downloads and rejected attempts for your files will appear here.</span>
+                </div>
+            {% endif %}
+        </section>
     </div>
 </div>
 {% endblock %}

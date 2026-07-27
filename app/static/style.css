@@ -183,6 +183,36 @@ body {
     gap: 12px;
 }
 
+.audit-list {
+    display: grid;
+    gap: 12px;
+}
+
+.audit-row {
+    align-items: center;
+    border: 1px solid #e1e8ef;
+    border-radius: 8px;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 14px;
+}
+
+.audit-row strong,
+.audit-row span {
+    display: block;
+}
+
+.audit-row span,
+.audit-ip {
+    color: #5d6d7e;
+    font-size: 14px;
+}
+
+.audit-ip {
+    white-space: nowrap;
+}
+
 .file-row {
     align-items: flex-start;
     border: 1px solid #e1e8ef;
@@ -264,6 +294,7 @@ body {
     }
 
     .file-row,
+    .audit-row,
     .link-form {
         align-items: stretch;
         flex-direction: column;
