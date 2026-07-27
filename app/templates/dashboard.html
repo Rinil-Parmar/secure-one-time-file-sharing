@@ -7,7 +7,7 @@
     <div>
         <p class="eyebrow">Dashboard</p>
         <h1>Secure file sharing</h1>
-        <p class="text-secondary mb-0">Upload confidential files and manage secure sharing from one place.</p>
+        <p class="text-secondary mb-0">Upload confidential files, encrypt them at rest, and manage secure sharing from one place.</p>
     </div>
     <span class="status-pill">Signed in as {{ current_user.username }}</span>
 </section>
@@ -18,7 +18,7 @@
             <div class="section-heading">
                 <div>
                     <h2>Upload file</h2>
-                    <p>Select a file now. Expiring one-time links will be generated in the next sharing step.</p>
+                    <p>Files are encrypted before they are stored on the server.</p>
                 </div>
             </div>
 
@@ -67,6 +67,10 @@
                     <span>Upload storage</span>
                     <strong>Ready</strong>
                 </div>
+                <div class="status-row">
+                    <span>Encryption at rest</span>
+                    <strong>Active</strong>
+                </div>
             </div>
         </section>
 
@@ -85,7 +89,7 @@
                                 <strong>{{ file.original_filename }}</strong>
                                 <span>Uploaded {{ file.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
                             </div>
-                            <span class="file-badge">Stored</span>
+                            <span class="file-badge">Encrypted</span>
                         </div>
                     {% endfor %}
                 </div>

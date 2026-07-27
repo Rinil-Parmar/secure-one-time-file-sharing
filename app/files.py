@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from app import db
+from app.crypto_utils import encrypt_bytes
 from app.models import StoredFile
 
 
@@ -42,15 +43,18 @@ def upload():
 
     stored_name = f"{uuid4().hex}_{safe_name}"
     stored_path = upload_folder / stored_name
-    uploaded_file.save(stored_path)
+    plaintext = uploaded_file.read()
+    ciphertext, nonce = encrypt_bytes(plaintext, current_app.config["ENCRYPTION_KEY"])
+    stored_path.write_bytes(ciphertext)
 
     stored_file = StoredFile(
         owner_id=current_user.id,
         original_filename=safe_name,
         stored_filename=stored_name,
+        nonce=nonce,
     )
     db.session.add(stored_file)
     db.session.commit()
 
-    flash("File uploaded successfully. Secure link creation is coming next.", "success")
+    flash("File uploaded and encrypted successfully.", "success")
     return redirect(url_for("dashboard"))
