@@ -6,12 +6,16 @@ A Flask web application for encrypted one-time file sharing with expiring access
 
 - User registration, login, logout, and protected dashboard
 - Secure upload storage outside the public static folder
+- Local filesystem storage for development and private S3-compatible storage in production
 - AES-GCM encryption before files are written to disk
 - Secure random download tokens generated with Python `secrets`
 - SHA-256 token hashes stored in SQLite instead of raw tokens
 - Configurable link expiration
 - One-time download enforcement
+- Atomic replay prevention for concurrent download requests
 - Optional password-protected download links
+- CSRF protection for all state-changing forms
+- Authenticated encryption integrity checks and secure response headers
 - Owner controls for creating new links and revoking active links
 - Access logging for success, invalid token, expired, reused, wrong password, and missing file attempts
 - Cleanup command for encrypted files that no longer have active links
@@ -24,8 +28,10 @@ A Flask web application for encrypted one-time file sharing with expiring access
 - SQLite
 - Flask-SQLAlchemy
 - Flask-Login
+- Flask-WTF
 - Werkzeug password hashing
 - `cryptography` AES-GCM
+- Supabase PostgreSQL and private Storage for cloud deployment
 - Bootstrap UI
 - pytest
 
@@ -47,9 +53,11 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-For development, the app has fallback keys. For a proper demo or deployment, create a `.env` file and set real secrets:
+Copy `.env.example` to `.env`, then replace both secrets before a proper demo or deployment:
 
 ```text
+APP_ENV=development
+FLASK_DEBUG=0
 SECRET_KEY=replace-with-a-long-random-secret
 ENCRYPTION_KEY=replace-with-a-long-random-encryption-secret
 ```
@@ -89,19 +97,31 @@ Open:
 http://127.0.0.1:5000
 ```
 
+Debug mode is off by default. Never enable the Flask debugger for an Ubuntu
+demonstration or production deployment. When `APP_ENV=production`, the
+application refuses to start with the development fallback secrets.
+
 ## Test
 
 ```powershell
 .\.venv\Scripts\pytest.exe -q
 ```
 
-Expected result:
+The suite covers authentication, CSRF, encryption at rest, integrity failure,
+one-time use, concurrent replay attempts, expiration, revocation, password
+protection, audit logs, and cleanup.
 
 ```text
-7 passed
+11 passed
 ```
 
 GitHub Actions runs the same test suite on every push and pull request to `main`.
+
+## Render and Supabase
+
+The cloud deployment uses Render for Flask compute and Supabase for persistent
+PostgreSQL data and private encrypted-object storage. See `DEPLOYMENT.md` for
+the complete setup procedure.
 
 ## Demo Flow
 
@@ -132,6 +152,10 @@ GitHub Actions runs the same test suite on every push and pull request to `main`
 - Files are encrypted before server-side storage.
 - Decrypted files are streamed from memory during download, not written to disk.
 - Used, expired, revoked, and invalid links are rejected.
+- Concurrent requests are resolved atomically so only one download can succeed.
+- AES-GCM rejects modified or corrupted ciphertext.
+- CSRF tokens protect authentication, upload, link, revoke, and logout forms.
+- Security headers prevent framing, referrer leakage, and MIME sniffing.
 - Access logs do not store raw tokens, passwords, or encryption keys.
 
 ## Useful Commands

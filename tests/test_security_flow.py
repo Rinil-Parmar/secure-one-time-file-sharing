@@ -1,8 +1,11 @@
 from datetime import timedelta
 from pathlib import Path
 import re
+from threading import Barrier, Thread
 
-from app import cleanup_inactive_files, db
+import pytest
+
+from app import cleanup_inactive_files, create_app, db
 from app.models import AccessLog, ShareLink, StoredFile, User, utc_now
 
 from tests.conftest import get_user, register_and_login, upload_file
@@ -27,6 +30,29 @@ def test_register_login_and_dashboard_protection(client):
     )
     assert response.status_code == 200
     assert b"Secure file sharing" in response.data
+
+
+def test_csrf_rejects_post_without_token(client, app):
+    app.config["WTF_CSRF_ENABLED"] = True
+    response = client.post(
+        "/register",
+        data={"username": "mallory", "password": "password123"},
+    )
+    app.config["WTF_CSRF_ENABLED"] = False
+
+    assert response.status_code == 400
+    assert b"Request could not be verified" in response.data
+
+
+def test_production_rejects_development_secrets():
+    with pytest.raises(RuntimeError, match="Production requires secure environment values"):
+        create_app(
+            {
+                "APP_ENV": "production",
+                "SECRET_KEY": "dev-secret-key-change-later",
+                "ENCRYPTION_KEY": "dev-encryption-key-change-later",
+            }
+        )
 
 
 def test_upload_encrypts_file_and_hashes_token(client, app):
@@ -120,6 +146,46 @@ def test_access_logs_are_recorded(client):
 
     statuses = [log.status for log in AccessLog.query.order_by(AccessLog.id).all()]
     assert statuses == ["invalid_token", "wrong_password", "success", "reused"]
+
+
+def test_modified_ciphertext_is_rejected(client, app):
+    register_and_login(client)
+    _, token = upload_file(client, payload=b"integrity protected")
+    stored_file = StoredFile.query.one()
+    stored_path = Path(app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
+    ciphertext = bytearray(stored_path.read_bytes())
+    ciphertext[0] ^= 1
+    stored_path.write_bytes(ciphertext)
+
+    response = client.get(f"/download/{token}")
+
+    assert response.status_code == 409
+    assert b"integrity check failed" in response.data
+    assert ShareLink.query.one().used_at is None
+    assert AccessLog.query.one().status == "integrity_error"
+
+
+def test_concurrent_download_only_succeeds_once(app, client):
+    register_and_login(client)
+    payload = b"only one concurrent response"
+    _, token = upload_file(client, payload=payload)
+    barrier = Barrier(2)
+    results = []
+
+    def download_at_same_time():
+        with app.test_client() as thread_client:
+            barrier.wait()
+            response = thread_client.get(f"/download/{token}")
+            results.append((response.status_code, response.data))
+
+    threads = [Thread(target=download_at_same_time) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert sorted(status for status, _ in results) == [200, 410]
+    assert sum(body == payload for _, body in results) == 1
 
 
 def test_cleanup_removes_inactive_files_only(client, app):

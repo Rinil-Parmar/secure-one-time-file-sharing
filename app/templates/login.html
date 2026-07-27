@@ -1,24 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Secure File Share{% endblock %}
+{% block title %}Log in · SecureShare{% endblock %}
 
 {% block content %}
 <section class="auth-shell">
     <div class="auth-card card border-0 shadow-sm">
         <div class="card-body p-4 p-md-5">
             <p class="eyebrow">Welcome back</p>
-            <h1 class="h3 mb-2">Log in to your vault</h1>
-            <p class="text-secondary mb-4">Access your secure file sharing dashboard.</p>
+            <h1 class="h3 mb-2">Log in to SecureShare</h1>
+            <p class="text-secondary mb-4">Manage encrypted files and one-time download links.</p>
 
             <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label fw-semibold" for="username">Username</label>
-                    <input class="form-control form-control-lg" id="username" name="username" type="text" autocomplete="username" required>
+                    <div class="input-icon">
+                        <i class="bi bi-person" aria-hidden="true"></i>
+                        <input class="form-control form-control-lg" id="username" name="username" type="text"
+                               placeholder="Enter your username" autocomplete="username" required autofocus>
+                    </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold" for="password">Password</label>
-                    <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+                    <div class="input-icon">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        <input class="form-control form-control-lg" id="password" name="password" type="password"
+                               placeholder="Enter your password" autocomplete="current-password" required>
+                    </div>
                 </div>
 
                 <button class="btn btn-primary btn-lg w-100" type="submit">Log In</button>

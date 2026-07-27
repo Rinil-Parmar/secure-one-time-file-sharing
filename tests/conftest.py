@@ -16,6 +16,7 @@ def app(tmp_path):
             "UPLOAD_FOLDER": tmp_path / "uploads",
             "ENCRYPTION_KEY": "test-encryption-key",
             "SECRET_KEY": "test-secret-key",
+            "WTF_CSRF_ENABLED": False,
         }
     )
 

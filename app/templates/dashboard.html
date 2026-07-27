@@ -1,185 +1,262 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Secure File Share{% endblock %}
+{% block title %}Dashboard · SecureShare{% endblock %}
 
 {% block content %}
-<section class="page-header">
+<section class="dashboard-hero">
     <div>
-        <p class="eyebrow">Dashboard</p>
+        <p class="eyebrow">Overview</p>
         <h1>Secure file sharing</h1>
-        <p class="text-secondary mb-0">Upload confidential files, encrypt them at rest, and manage secure sharing from one place.</p>
+        <p>Send confidential files with encryption, automatic expiry, and one-time access.</p>
     </div>
-    <span class="status-pill">Signed in as {{ current_user.username }}</span>
+    <a class="btn btn-primary hero-action" href="#upload-file">
+        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+        Upload a file
+    </a>
 </section>
 
-<div class="row g-4 align-items-start">
-    <div class="col-lg-7">
-        <section class="app-card">
-            <div class="section-heading">
-                <div>
-                    <h2>Upload file</h2>
-                    <p>Files are encrypted before storage and paired with an expiring secure link.</p>
-                </div>
+<section class="metrics-grid" aria-label="Account summary">
+    <article class="metric-card">
+        <span class="metric-icon metric-icon-blue"><i class="bi bi-file-earmark-lock2"></i></span>
+        <div>
+            <span class="metric-label">Encrypted files</span>
+            <strong>{{ uploaded_files|length }}</strong>
+            <small>Stored securely</small>
+        </div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-icon metric-icon-green"><i class="bi bi-link-45deg"></i></span>
+        <div>
+            <span class="metric-label">Active links</span>
+            <strong>{{ active_links }}</strong>
+            <small>Ready to use</small>
+        </div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-icon metric-icon-violet"><i class="bi bi-shield-check"></i></span>
+        <div>
+            <span class="metric-label">Security events</span>
+            <strong>{{ recent_logs|length }}</strong>
+            <small>Recent attempts</small>
+        </div>
+    </article>
+</section>
+
+<div class="dashboard-grid">
+    <section class="panel upload-panel" id="upload-file">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">New transfer</span>
+                <h2>Upload a confidential file</h2>
+                <p>We encrypt your file before it reaches server storage.</p>
             </div>
+            <span class="security-chip"><i class="bi bi-lock-fill"></i> AES-GCM encrypted</span>
+        </div>
 
-            <form method="post" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold" for="file">File</label>
-                    <input class="form-control form-control-lg" id="file" name="file" type="file" required>
-                    <div class="form-text">Choose the confidential file you want to share.</div>
-                </div>
+        <form method="post" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="upload-dropzone" for="file">
+                <input id="file" name="file" type="file" required data-file-input>
+                <span class="upload-icon"><i class="bi bi-cloud-arrow-up"></i></span>
+                <strong data-file-label>Choose a file or drag it here</strong>
+                <small>Maximum file size: 16 MB</small>
+            </label>
 
-                <div class="mb-4">
-                    <label class="form-label fw-semibold" for="expiration_minutes">Link expiration</label>
-                    <select class="form-select form-select-lg" id="expiration_minutes" name="expiration_minutes">
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="expiration_minutes">Link expires after</label>
+                    <select class="form-select" id="expiration_minutes" name="expiration_minutes">
                         <option value="15">15 minutes</option>
                         <option value="60" selected>1 hour</option>
                         <option value="240">4 hours</option>
                         <option value="1440">24 hours</option>
                     </select>
-                    <div class="form-text">This setting will be used when the share link is created.</div>
                 </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-semibold" for="link_password">Optional link password</label>
-                    <input class="form-control form-control-lg" id="link_password" name="link_password" type="password" autocomplete="new-password">
-                    <div class="form-text">Leave blank if the receiver should only need the secure link.</div>
+                <div>
+                    <label class="form-label" for="link_password">
+                        Link password <span>Optional</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="bi bi-key" aria-hidden="true"></i>
+                        <input class="form-control" id="link_password" name="link_password" type="password"
+                               placeholder="Add extra protection" autocomplete="new-password">
+                    </div>
                 </div>
+            </div>
 
-                <button class="btn btn-primary btn-lg" type="submit">Upload and Create Link</button>
-            </form>
-        </section>
+            <div class="upload-footer">
+                <p><i class="bi bi-info-circle"></i> The download link becomes invalid after its first successful use.</p>
+                <button class="btn btn-primary" type="submit">
+                    Encrypt &amp; create link
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <aside class="panel protection-panel">
+        <div class="panel-heading compact">
+            <div>
+                <span class="section-kicker">Protection</span>
+                <h2>Built for private sharing</h2>
+            </div>
+        </div>
+        <div class="protection-list">
+            <div>
+                <span><i class="bi bi-database-lock"></i></span>
+                <div><strong>Encrypted at rest</strong><small>Files remain unreadable in storage.</small></div>
+            </div>
+            <div>
+                <span><i class="bi bi-1-circle"></i></span>
+                <div><strong>One-time access</strong><small>Successful downloads invalidate the link.</small></div>
+            </div>
+            <div>
+                <span><i class="bi bi-clock-history"></i></span>
+                <div><strong>Automatic expiry</strong><small>Links stop working at your chosen time.</small></div>
+            </div>
+            <div>
+                <span><i class="bi bi-journal-check"></i></span>
+                <div><strong>Access visibility</strong><small>Successful and rejected attempts are logged.</small></div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<section class="panel files-panel">
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">Your vault</span>
+            <h2>Shared files</h2>
+            <p>Manage encrypted files and their latest download links.</p>
+        </div>
+        {% if uploaded_files %}
+            <span class="count-badge">{{ uploaded_files|length }} file{{ '' if uploaded_files|length == 1 else 's' }}</span>
+        {% endif %}
     </div>
 
-    <div class="col-lg-5">
-        <section class="app-card">
-            <div class="section-heading">
-                <div>
-                    <h2>System status</h2>
-                    <p>Security controls enabled for this account.</p>
-                </div>
-            </div>
+    {% if uploaded_files %}
+        <div class="file-table">
+            {% for file in uploaded_files %}
+                {% set latest_link = file.share_links[-1] if file.share_links else none %}
+                <article class="file-item">
+                    <div class="file-identity">
+                        <span class="file-icon"><i class="bi bi-file-earmark-lock2"></i></span>
+                        <div>
+                            <strong title="{{ file.original_filename }}">{{ file.original_filename }}</strong>
+                            <span>Uploaded <time datetime="{{ file.created_at.isoformat() }}">{{ file.created_at.strftime("%b %d, %Y at %H:%M") }}</time></span>
+                        </div>
+                    </div>
 
-            <div class="status-list">
-                <div class="status-row">
-                    <span>Authentication</span>
-                    <strong>Complete</strong>
-                </div>
-                <div class="status-row">
-                    <span>Database</span>
-                    <strong>Complete</strong>
-                </div>
-                <div class="status-row">
-                    <span>Upload storage</span>
-                    <strong>Ready</strong>
-                </div>
-                <div class="status-row">
-                    <span>Encryption at rest</span>
-                    <strong>Active</strong>
-                </div>
-                <div class="status-row">
-                    <span>Secure token</span>
-                    <strong>Active</strong>
-                </div>
-            </div>
-        </section>
+                    <div class="file-expiry">
+                        <span>Latest link</span>
+                        {% if latest_link %}
+                            <strong>{{ latest_link.expires_at.strftime("%b %d, %H:%M") }}</strong>
+                        {% else %}
+                            <strong>Not created</strong>
+                        {% endif %}
+                    </div>
 
-        <section class="app-card mt-4">
-            <div class="section-heading">
-                <div>
-                    <h2>Shared files</h2>
-                    <p>Uploaded files and their latest share-link state.</p>
-                </div>
-            </div>
-            {% if uploaded_files %}
-                <div class="file-list">
-                    {% for file in uploaded_files %}
-                        <div class="file-row">
-                            <div class="file-summary">
-                                <strong>{{ file.original_filename }}</strong>
-                                <span>Uploaded {{ file.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
-                                {% if file.share_links %}
-                                    {% set latest_link = file.share_links[-1] %}
-                                    <span>Expires {{ latest_link.expires_at.strftime("%Y-%m-%d %H:%M") }}</span>
-                                    {% if latest_link.used_at %}
-                                        <span>Last link used {{ latest_link.used_at.strftime("%Y-%m-%d %H:%M") }}</span>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                            <div class="file-actions">
-                                {% if file.share_links %}
-                                    {% set latest_link = file.share_links[-1] %}
-                                    {% if latest_link.used_at %}
-                                        <span class="file-badge badge-used">Inactive</span>
-                                    {% elif latest_link.expires_at <= now %}
-                                        <span class="file-badge badge-expired">Expired</span>
-                                    {% elif latest_link.password_hash %}
-                                        <span class="file-badge badge-locked">Password</span>
-                                    {% else %}
-                                        <span class="file-badge">Active</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="file-badge">Encrypted</span>
-                                {% endif %}
-                                <form method="post" action="{{ url_for('files.create_link', file_id=file.id) }}" class="link-form">
-                                    <select class="form-select form-select-sm" name="expiration_minutes" aria-label="Link expiration">
-                                        <option value="15">15 min</option>
+                    <div class="file-status">
+                        {% if latest_link %}
+                            {% if latest_link.used_at %}
+                                <span class="state-badge state-inactive"><i class="bi bi-slash-circle"></i> Inactive</span>
+                            {% elif latest_link.expires_at <= now %}
+                                <span class="state-badge state-expired"><i class="bi bi-clock-history"></i> Expired</span>
+                            {% elif latest_link.password_hash %}
+                                <span class="state-badge state-protected"><i class="bi bi-lock"></i> Protected</span>
+                            {% else %}
+                                <span class="state-badge state-active"><i class="bi bi-check-circle"></i> Active</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="state-badge state-inactive">No link</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="file-menu">
+                        <details>
+                            <summary class="btn btn-light btn-sm" aria-label="File actions">
+                                <i class="bi bi-three-dots"></i>
+                            </summary>
+                            <div class="action-popover">
+                                <form method="post" action="{{ url_for('files.create_link', file_id=file.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <strong>Create a new link</strong>
+                                    <label for="expiry-{{ file.id }}">Expires after</label>
+                                    <select class="form-select form-select-sm" id="expiry-{{ file.id }}" name="expiration_minutes">
+                                        <option value="15">15 minutes</option>
                                         <option value="60" selected>1 hour</option>
                                         <option value="240">4 hours</option>
                                         <option value="1440">24 hours</option>
                                     </select>
-                                    <button class="btn btn-outline-primary btn-sm" type="submit">New Link</button>
-                                    <input class="form-control form-control-sm link-password-input" name="link_password" type="password" placeholder="Optional password" autocomplete="new-password">
+                                    <label for="password-{{ file.id }}">Password <span>(optional)</span></label>
+                                    <input class="form-control form-control-sm" id="password-{{ file.id }}" name="link_password"
+                                           type="password" placeholder="Link password" autocomplete="new-password">
+                                    <button class="btn btn-primary btn-sm w-100" type="submit">
+                                        <i class="bi bi-link-45deg"></i> Create link
+                                    </button>
                                 </form>
-                                {% if file.share_links %}
-                                    {% set latest_link = file.share_links[-1] %}
-                                    {% if latest_link.used_at is none and latest_link.expires_at > now %}
-                                        <form method="post" action="{{ url_for('files.revoke_link', link_id=latest_link.id) }}">
-                                            <button class="btn btn-outline-danger btn-sm w-100" type="submit">Revoke Link</button>
-                                        </form>
-                                    {% endif %}
+                                {% if latest_link and latest_link.used_at is none and latest_link.expires_at > now %}
+                                    <form method="post" action="{{ url_for('files.revoke_link', link_id=latest_link.id) }}"
+                                          data-confirm="Revoke this link? The recipient will no longer be able to use it.">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-link text-danger btn-sm w-100 revoke-action" type="submit">
+                                            <i class="bi bi-x-circle"></i> Revoke current link
+                                        </button>
+                                    </form>
                                 {% endif %}
                             </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <strong>No files yet</strong>
-                    <span>Your uploaded files will appear here with link status and expiry details.</span>
-                </div>
-            {% endif %}
-        </section>
+                        </details>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <span class="empty-icon"><i class="bi bi-folder2-open"></i></span>
+            <strong>Your secure vault is empty</strong>
+            <p>Upload your first file to create an encrypted, one-time download link.</p>
+            <a class="btn btn-primary btn-sm" href="#upload-file">Upload first file</a>
+        </div>
+    {% endif %}
+</section>
 
-        <section class="app-card mt-4">
-            <div class="section-heading">
-                <div>
-                    <h2>Recent access attempts</h2>
-                    <p>Security events for your shared files.</p>
-                </div>
-            </div>
-            {% if recent_logs %}
-                <div class="audit-list">
-                    {% for log in recent_logs %}
-                        <div class="audit-row">
-                            <div>
-                                <strong>{{ log.status.replace("_", " ").title() }}</strong>
-                                <span>{{ log.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
-                                {% if log.share_link and log.share_link.file %}
-                                    <span>{{ log.share_link.file.original_filename }}</span>
-                                {% endif %}
-                            </div>
-                            <span class="audit-ip">{{ log.ip_address or "Unknown IP" }}</span>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <strong>No access attempts yet</strong>
-                    <span>Downloads and rejected attempts for your files will appear here.</span>
-                </div>
-            {% endif %}
-        </section>
+<section class="panel audit-panel">
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">Audit trail</span>
+            <h2>Recent access activity</h2>
+            <p>Review successful downloads and rejected access attempts.</p>
+        </div>
     </div>
-</div>
+    {% if recent_logs %}
+        <div class="activity-list">
+            {% for log in recent_logs %}
+                {% set is_success = log.status == "success" %}
+                <article class="activity-item">
+                    <span class="activity-icon {{ 'activity-success' if is_success else 'activity-warning' }}">
+                        <i class="bi bi-{{ 'check2' if is_success else 'exclamation' }}"></i>
+                    </span>
+                    <div class="activity-main">
+                        <strong>{{ log.status.replace("_", " ").title() }}</strong>
+                        <span>
+                            {% if log.share_link and log.share_link.file %}
+                                {{ log.share_link.file.original_filename }}
+                            {% else %}
+                                Unrecognized share link
+                            {% endif %}
+                        </span>
+                    </div>
+                    <span class="activity-ip"><i class="bi bi-globe2"></i> {{ log.ip_address or "Unknown IP" }}</span>
+                    <time datetime="{{ log.created_at.isoformat() }}">{{ log.created_at.strftime("%b %d, %H:%M") }}</time>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state compact-empty">
+            <span class="empty-icon"><i class="bi bi-shield-check"></i></span>
+            <strong>No access activity yet</strong>
+            <p>Download attempts will appear here when someone opens a shared link.</p>
+        </div>
+    {% endif %}
+</section>
 {% endblock %}

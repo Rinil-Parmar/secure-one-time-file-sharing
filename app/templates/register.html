@@ -1,25 +1,34 @@
 {% extends "base.html" %}
 
-{% block title %}Register - Secure File Share{% endblock %}
+{% block title %}Create account · SecureShare{% endblock %}
 
 {% block content %}
 <section class="auth-shell">
     <div class="auth-card card border-0 shadow-sm">
         <div class="card-body p-4 p-md-5">
             <p class="eyebrow">Create account</p>
-            <h1 class="h3 mb-2">Start secure sharing</h1>
-            <p class="text-secondary mb-4">Register to upload encrypted files and generate one-time download links.</p>
+            <h1 class="h3 mb-2">Create your secure vault</h1>
+            <p class="text-secondary mb-4">Upload encrypted files and share them with controlled, one-time access.</p>
 
             <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label fw-semibold" for="username">Username</label>
-                    <input class="form-control form-control-lg" id="username" name="username" type="text" autocomplete="username" required>
+                    <div class="input-icon">
+                        <i class="bi bi-person" aria-hidden="true"></i>
+                        <input class="form-control form-control-lg" id="username" name="username" type="text"
+                               placeholder="Choose a username" autocomplete="username" required autofocus>
+                    </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold" for="password">Password</label>
-                    <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
-                    <div class="form-text">Use at least 8 characters.</div>
+                    <div class="input-icon">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        <input class="form-control form-control-lg" id="password" name="password" type="password"
+                               placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="form-text">Use 8–128 characters.</div>
                 </div>
 
                 <button class="btn btn-primary btn-lg w-100" type="submit">Create Account</button>

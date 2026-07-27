@@ -1,3 +1,5 @@
+import re
+
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -7,6 +9,7 @@ from app.models import User
 
 
 auth_bp = Blueprint("auth", __name__)
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -22,8 +25,19 @@ def register():
             flash("Username and password are required.", "error")
             return render_template("register.html")
 
+        if len(username) < 3 or len(username) > 80 or not USERNAME_PATTERN.fullmatch(username):
+            flash(
+                "Username must be 3–80 characters and use only letters, numbers, dots, hyphens, or underscores.",
+                "error",
+            )
+            return render_template("register.html")
+
         if len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
+            return render_template("register.html")
+
+        if len(password) > 128:
+            flash("Password must be 128 characters or fewer.", "error")
             return render_template("register.html")
 
         existing_user = User.query.filter_by(username=username).first()
@@ -65,7 +79,7 @@ def login():
     return render_template("login.html")
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 def logout():
     logout_user()
     flash("You have been logged out.", "success")

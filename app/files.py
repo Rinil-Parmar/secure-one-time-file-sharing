@@ -1,18 +1,20 @@
 from datetime import timedelta
 import hashlib
 from io import BytesIO
-from pathlib import Path
 import secrets
 from uuid import uuid4
 
+from cryptography.exceptions import InvalidTag
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import update
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from app import db
 from app.crypto_utils import decrypt_bytes, encrypt_bytes
 from app.models import AccessLog, ShareLink, StoredFile, utc_now
+from app.storage import StorageError, StorageNotFound, get_encrypted_storage
 
 
 files_bp = Blueprint("files", __name__)
@@ -47,6 +49,10 @@ def create_share_link(stored_file, expiration_minutes, password=None):
     return token
 
 
+def link_password_is_valid(password):
+    return len(password) <= 128
+
+
 def log_access(status, share_link=None):
     user_agent = request.headers.get("User-Agent", "")
     log_entry = AccessLog(
@@ -69,6 +75,10 @@ def upload():
         flash("Please choose a file before uploading.", "error")
         return redirect(url_for("dashboard"))
 
+    if not link_password_is_valid(link_password):
+        flash("Link password must be 128 characters or fewer.", "error")
+        return redirect(url_for("dashboard"))
+
     expiration_minutes = parse_expiration_minutes(expiration_minutes)
     if expiration_minutes is None:
         flash("Expiration time must be between 1 minute and 24 hours.", "error")
@@ -79,14 +89,19 @@ def upload():
         flash("File name is not valid.", "error")
         return redirect(url_for("dashboard"))
 
-    upload_folder = Path(current_app.config["UPLOAD_FOLDER"])
-    upload_folder.mkdir(parents=True, exist_ok=True)
-
     stored_name = f"{uuid4().hex}_{safe_name}"
-    stored_path = upload_folder / stored_name
     plaintext = uploaded_file.read()
+    if not plaintext:
+        flash("The selected file is empty.", "error")
+        return redirect(url_for("dashboard"))
+
     ciphertext, nonce = encrypt_bytes(plaintext, current_app.config["ENCRYPTION_KEY"])
-    stored_path.write_bytes(ciphertext)
+    try:
+        get_encrypted_storage().put(stored_name, ciphertext)
+    except (OSError, StorageError):
+        current_app.logger.exception("Could not save encrypted upload")
+        flash("The encrypted file could not be saved. Please try again.", "error")
+        return redirect(url_for("dashboard"))
 
     stored_file = StoredFile(
         owner_id=current_user.id,
@@ -98,10 +113,20 @@ def upload():
     db.session.flush()
 
     token = create_share_link(stored_file, expiration_minutes, link_password)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        try:
+            get_encrypted_storage().delete(stored_name)
+        except (OSError, StorageError):
+            current_app.logger.exception("Could not roll back encrypted upload")
+        current_app.logger.exception("Could not save upload metadata")
+        flash("The upload could not be completed. Please try again.", "error")
+        return redirect(url_for("dashboard"))
 
     download_url = url_for("files.download", token=token, _external=True)
-    flash(f"File encrypted. Secure link: {download_url}", "success")
+    flash(download_url, "secure_link")
     return redirect(url_for("dashboard"))
 
 
@@ -119,11 +144,15 @@ def create_link(file_id):
         flash("Expiration time must be between 1 minute and 24 hours.", "error")
         return redirect(url_for("dashboard"))
 
+    if not link_password_is_valid(link_password):
+        flash("Link password must be 128 characters or fewer.", "error")
+        return redirect(url_for("dashboard"))
+
     token = create_share_link(stored_file, expiration_minutes, link_password)
     db.session.commit()
 
     download_url = url_for("files.download", token=token, _external=True)
-    flash(f"New secure link: {download_url}", "success")
+    flash(download_url, "secure_link")
     return redirect(url_for("dashboard"))
 
 
@@ -202,8 +231,9 @@ def download(token):
             ), 403
 
     stored_file = share_link.file
-    stored_path = Path(current_app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
-    if not stored_path.exists():
+    try:
+        ciphertext = get_encrypted_storage().get(stored_file.stored_filename)
+    except StorageNotFound:
         log_access("missing_file", share_link)
         db.session.commit()
         return render_template(
@@ -211,15 +241,57 @@ def download(token):
             title="File unavailable",
             message="The encrypted file could not be found on the server.",
         ), 404
+    except (OSError, StorageError):
+        db.session.rollback()
+        current_app.logger.exception("Could not retrieve encrypted file %s", stored_file.id)
+        return render_template(
+            "download.html",
+            title="Storage temporarily unavailable",
+            message="The encrypted file could not be retrieved. Please try again later.",
+        ), 503
 
-    ciphertext = stored_path.read_bytes()
-    plaintext = decrypt_bytes(
-        ciphertext,
-        stored_file.nonce,
-        current_app.config["ENCRYPTION_KEY"],
+    try:
+        plaintext = decrypt_bytes(
+            ciphertext,
+            stored_file.nonce,
+            current_app.config["ENCRYPTION_KEY"],
+        )
+    except (InvalidTag, OSError, TypeError, ValueError):
+        db.session.rollback()
+        log_access("integrity_error", share_link)
+        db.session.commit()
+        current_app.logger.warning("Encrypted file integrity check failed for file %s", stored_file.id)
+        return render_template(
+            "download.html",
+            title="File integrity check failed",
+            message="The encrypted file was changed or damaged and cannot be downloaded safely.",
+        ), 409
+
+    claimed_at = utc_now()
+    claim = db.session.execute(
+        update(ShareLink)
+        .where(
+            ShareLink.id == share_link.id,
+            ShareLink.used_at.is_(None),
+            ShareLink.expires_at > claimed_at,
+        )
+        .values(used_at=claimed_at)
+        .execution_options(synchronize_session=False)
     )
+    if claim.rowcount != 1:
+        db.session.rollback()
+        current_link = db.session.get(ShareLink, share_link.id)
+        status = "expired" if current_link.expires_at <= claimed_at else "reused"
+        log_access(status, current_link)
+        db.session.commit()
+        title = "Link expired" if status == "expired" else "Link already used"
+        message = (
+            "This download link has expired."
+            if status == "expired"
+            else "This download link has already been used."
+        )
+        return render_template("download.html", title=title, message=message), 410
 
-    share_link.used_at = utc_now()
     log_access("success", share_link)
     db.session.commit()
 

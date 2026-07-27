@@ -1,19 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Download - Secure File Share{% endblock %}
+{% block title %}Secure download · SecureShare{% endblock %}
 
 {% block content %}
 <section class="auth-shell">
     <div class="auth-card card border-0 shadow-sm">
         <div class="card-body p-4 p-md-5">
-            <p class="eyebrow">Secure download</p>
+            <span class="brand-mark mb-4" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></span>
+            <p class="eyebrow">Secure one-time download</p>
             <h1 class="h3 mb-2">{{ title }}</h1>
             <p class="text-secondary {% if requires_password %}mb-4{% else %}mb-0{% endif %}">{{ message }}</p>
             {% if requires_password %}
                 <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="password">Password</label>
-                        <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+                        <div class="input-icon">
+                            <i class="bi bi-key" aria-hidden="true"></i>
+                            <input class="form-control form-control-lg" id="password" name="password" type="password"
+                                   placeholder="Enter the link password" autocomplete="current-password" required autofocus>
+                        </div>
                     </div>
                     <button class="btn btn-primary btn-lg w-100" type="submit">Download File</button>
                 </form>

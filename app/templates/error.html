@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · SecureShare{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 text-center">
+            <span class="brand-mark mb-4" aria-hidden="true"><i class="bi bi-shield-exclamation"></i></span>
+            <p class="eyebrow">SecureShare</p>
+            <h1 class="h3 mb-2">{{ title }}</h1>
+            <p class="text-secondary mb-4">{{ message }}</p>
+            <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Return to dashboard</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -30,7 +30,12 @@ class StoredFile(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
 
     owner = db.relationship("User", back_populates="files")
-    share_links = db.relationship("ShareLink", back_populates="file", cascade="all, delete-orphan")
+    share_links = db.relationship(
+        "ShareLink",
+        back_populates="file",
+        cascade="all, delete-orphan",
+        order_by="ShareLink.created_at",
+    )
 
     def __repr__(self):
         return f"<StoredFile {self.original_filename}>"
