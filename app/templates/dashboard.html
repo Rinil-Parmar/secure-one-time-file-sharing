@@ -18,9 +18,8 @@
             <div class="section-heading">
                 <div>
                     <h2>Upload file</h2>
-                    <p>File storage and encryption will be connected in the next step.</p>
+                    <p>Select a file and choose how long the secure link should remain valid.</p>
                 </div>
-                <span class="tag">Step 4</span>
             </div>
 
             <form method="post" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
@@ -50,7 +49,7 @@
             <div class="section-heading">
                 <div>
                     <h2>System status</h2>
-                    <p>Current implementation progress.</p>
+                    <p>Security controls enabled for this account.</p>
                 </div>
             </div>
 
@@ -66,10 +65,6 @@
                 <div class="status-row">
                     <span>Upload UI</span>
                     <strong>Ready</strong>
-                </div>
-                <div class="status-row muted-row">
-                    <span>Encryption</span>
-                    <strong>Next</strong>
                 </div>
             </div>
         </section>
@@ -88,29 +83,4 @@
         </section>
     </div>
 </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="metric-card">
-            <span>Database</span>
-            <strong>Connected</strong>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="metric-card">
-            <span>Next Feature</span>
-            <strong>Upload</strong>
-        </div>
-    </div>
-</div>
-
-<section class="card border-0 shadow-sm mt-4">
-    <div class="card-body p-4">
-        <h2 class="h5 mb-2">Project progress</h2>
-        <p class="text-secondary mb-3">The secure account layer is complete. File upload will be added in the next step.</p>
-        <div class="progress" role="progressbar" aria-label="Project progress" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: 25%">Step 3 of 12</div>
-        </div>
-    </div>
-</section>
 {% endblock %}
