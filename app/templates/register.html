@@ -1,1 +1,23 @@
+{% extends "base.html" %}
 
+{% block title %}Register - Secure File Share{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+    <p class="eyebrow">Create account</p>
+    <h1>Start secure sharing</h1>
+    <p class="muted">Register to upload encrypted files and generate one-time download links.</p>
+
+    <form method="post" class="form">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" required>
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+
+        <button type="submit">Create Account</button>
+    </form>
+
+    <p class="form-footer">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}

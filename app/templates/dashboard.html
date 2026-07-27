@@ -4,7 +4,23 @@
 
 {% block content %}
 <section class="panel">
-    <h1>Secure One-Time File Sharing</h1>
-    <p>The Flask app is running. Next we will add the database and authentication.</p>
+    <p class="eyebrow">Dashboard</p>
+    <h1>Welcome, {{ current_user.username }}</h1>
+    <p class="muted">Your account is ready. Next we will add secure file upload and encrypted storage.</p>
+
+    <div class="status-grid">
+        <div class="status-item">
+            <span class="status-label">Authentication</span>
+            <strong>Active</strong>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Database</span>
+            <strong>Connected</strong>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Next Feature</span>
+            <strong>Upload</strong>
+        </div>
+    </div>
 </section>
 {% endblock %}

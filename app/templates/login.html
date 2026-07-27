@@ -1,1 +1,23 @@
+{% extends "base.html" %}
 
+{% block title %}Login - Secure File Share{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+    <p class="eyebrow">Welcome back</p>
+    <h1>Log in to your vault</h1>
+    <p class="muted">Access your secure file sharing dashboard.</p>
+
+    <form method="post" class="form">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" required>
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+        <button type="submit">Log In</button>
+    </form>
+
+    <p class="form-footer">New here? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+</section>
+{% endblock %}
