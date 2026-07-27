@@ -21,6 +21,29 @@ def hash_token(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def parse_expiration_minutes(value):
+    try:
+        expiration_minutes = int(value)
+    except ValueError:
+        return None
+
+    if expiration_minutes < 1 or expiration_minutes > 1440:
+        return None
+
+    return expiration_minutes
+
+
+def create_share_link(stored_file, expiration_minutes):
+    token = secrets.token_urlsafe(32)
+    share_link = ShareLink(
+        file_id=stored_file.id,
+        token_hash=hash_token(token),
+        expires_at=utc_now() + timedelta(minutes=expiration_minutes),
+    )
+    db.session.add(share_link)
+    return token
+
+
 @files_bp.route("/upload", methods=["POST"])
 @login_required
 def upload():
@@ -31,13 +54,8 @@ def upload():
         flash("Please choose a file before uploading.", "error")
         return redirect(url_for("dashboard"))
 
-    try:
-        expiration_minutes = int(expiration_minutes)
-    except ValueError:
-        flash("Expiration time must be a number.", "error")
-        return redirect(url_for("dashboard"))
-
-    if expiration_minutes < 1 or expiration_minutes > 1440:
+    expiration_minutes = parse_expiration_minutes(expiration_minutes)
+    if expiration_minutes is None:
         flash("Expiration time must be between 1 minute and 24 hours.", "error")
         return redirect(url_for("dashboard"))
 
@@ -64,17 +82,32 @@ def upload():
     db.session.add(stored_file)
     db.session.flush()
 
-    token = secrets.token_urlsafe(32)
-    share_link = ShareLink(
-        file_id=stored_file.id,
-        token_hash=hash_token(token),
-        expires_at=utc_now() + timedelta(minutes=expiration_minutes),
-    )
-    db.session.add(share_link)
+    token = create_share_link(stored_file, expiration_minutes)
     db.session.commit()
 
     download_url = url_for("files.download", token=token, _external=True)
     flash(f"File encrypted. Secure link: {download_url}", "success")
+    return redirect(url_for("dashboard"))
+
+
+@files_bp.route("/files/<int:file_id>/share", methods=["POST"])
+@login_required
+def create_link(file_id):
+    stored_file = StoredFile.query.filter_by(id=file_id, owner_id=current_user.id).first()
+    if stored_file is None:
+        flash("File not found.", "error")
+        return redirect(url_for("dashboard"))
+
+    expiration_minutes = parse_expiration_minutes(request.form.get("expiration_minutes", "60"))
+    if expiration_minutes is None:
+        flash("Expiration time must be between 1 minute and 24 hours.", "error")
+        return redirect(url_for("dashboard"))
+
+    token = create_share_link(stored_file, expiration_minutes)
+    db.session.commit()
+
+    download_url = url_for("files.download", token=token, _external=True)
+    flash(f"New secure link: {download_url}", "success")
     return redirect(url_for("dashboard"))
 
 

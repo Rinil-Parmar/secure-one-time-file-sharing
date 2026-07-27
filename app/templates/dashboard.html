@@ -89,7 +89,7 @@
                 <div class="file-list">
                     {% for file in uploaded_files %}
                         <div class="file-row">
-                            <div>
+                            <div class="file-summary">
                                 <strong>{{ file.original_filename }}</strong>
                                 <span>Uploaded {{ file.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
                                 {% if file.share_links %}
@@ -97,7 +97,18 @@
                                     <span>Expires {{ latest_link.expires_at.strftime("%Y-%m-%d %H:%M") }}</span>
                                 {% endif %}
                             </div>
-                            <span class="file-badge">Encrypted</span>
+                            <div class="file-actions">
+                                <span class="file-badge">Encrypted</span>
+                                <form method="post" action="{{ url_for('files.create_link', file_id=file.id) }}" class="link-form">
+                                    <select class="form-select form-select-sm" name="expiration_minutes" aria-label="Link expiration">
+                                        <option value="15">15 min</option>
+                                        <option value="60" selected>1 hour</option>
+                                        <option value="240">4 hours</option>
+                                        <option value="1440">24 hours</option>
+                                    </select>
+                                    <button class="btn btn-outline-primary btn-sm" type="submit">New Link</button>
+                                </form>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>

@@ -184,7 +184,7 @@ body {
 }
 
 .file-row {
-    align-items: center;
+    align-items: flex-start;
     border: 1px solid #e1e8ef;
     border-radius: 8px;
     display: flex;
@@ -193,15 +193,22 @@ body {
     padding: 14px;
 }
 
-.file-row strong,
-.file-row span {
+.file-summary strong,
+.file-summary span {
     display: block;
 }
 
-.file-row span {
+.file-summary span {
     color: #5d6d7e;
     font-size: 14px;
     margin-top: 3px;
+}
+
+.file-actions {
+    align-items: flex-end;
+    display: grid;
+    gap: 10px;
+    justify-items: end;
 }
 
 .file-badge {
@@ -215,6 +222,16 @@ body {
     white-space: nowrap;
 }
 
+.link-form {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.link-form .form-select {
+    width: 96px;
+}
+
 @media (max-width: 640px) {
     .page-header {
         align-items: flex-start;
@@ -225,5 +242,20 @@ body {
 
     .app-main {
         padding-top: 32px;
+    }
+
+    .file-row,
+    .link-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .file-actions {
+        justify-items: stretch;
+        width: 100%;
+    }
+
+    .link-form .form-select {
+        width: 100%;
     }
 }
