@@ -3,21 +3,31 @@
 {% block title %}Login - Secure File Share{% endblock %}
 
 {% block content %}
-<section class="auth-card">
-    <p class="eyebrow">Welcome back</p>
-    <h1>Log in to your vault</h1>
-    <p class="muted">Access your secure file sharing dashboard.</p>
+<section class="auth-shell">
+    <div class="auth-card card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5">
+            <p class="eyebrow">Welcome back</p>
+            <h1 class="h3 mb-2">Log in to your vault</h1>
+            <p class="text-secondary mb-4">Access your secure file sharing dashboard.</p>
 
-    <form method="post" class="form">
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" autocomplete="username" required>
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="username">Username</label>
+                    <input class="form-control form-control-lg" id="username" name="username" type="text" autocomplete="username" required>
+                </div>
 
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold" for="password">Password</label>
+                    <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+                </div>
 
-        <button type="submit">Log In</button>
-    </form>
+                <button class="btn btn-primary btn-lg w-100" type="submit">Log In</button>
+            </form>
 
-    <p class="form-footer">New here? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+            <p class="text-secondary text-center mt-4 mb-0">
+                New here? <a href="{{ url_for('auth.register') }}">Create an account</a>
+            </p>
+        </div>
+    </div>
 </section>
 {% endblock %}
