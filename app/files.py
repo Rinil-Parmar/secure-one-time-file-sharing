@@ -128,6 +128,13 @@ def download(token):
             message="This download link has expired.",
         ), 410
 
+    if share_link.used_at is not None:
+        return render_template(
+            "download.html",
+            title="Link already used",
+            message="This download link has already been used.",
+        ), 410
+
     stored_file = share_link.file
     stored_path = Path(current_app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
     if not stored_path.exists():
@@ -143,6 +150,9 @@ def download(token):
         stored_file.nonce,
         current_app.config["ENCRYPTION_KEY"],
     )
+
+    share_link.used_at = utc_now()
+    db.session.commit()
 
     return send_file(
         BytesIO(plaintext),

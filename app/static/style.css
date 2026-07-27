@@ -222,6 +222,16 @@ body {
     white-space: nowrap;
 }
 
+.badge-used {
+    background: #f4f0fb;
+    color: #6146a3 !important;
+}
+
+.badge-expired {
+    background: #fbefef;
+    color: #9b2c2c !important;
+}
+
 .link-form {
     align-items: center;
     display: flex;

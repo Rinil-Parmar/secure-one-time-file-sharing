@@ -22,7 +22,7 @@ def create_app():
 
     from app.auth import auth_bp
     from app.files import files_bp
-    from app.models import User
+    from app.models import User, utc_now
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
@@ -39,7 +39,7 @@ def create_app():
             key=lambda file: file.created_at,
             reverse=True,
         )
-        return render_template("dashboard.html", uploaded_files=uploaded_files)
+        return render_template("dashboard.html", now=utc_now(), uploaded_files=uploaded_files)
 
     @app.cli.command("init-db")
     def init_db():
