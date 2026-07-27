@@ -232,6 +232,11 @@ body {
     color: #9b2c2c !important;
 }
 
+.badge-locked {
+    background: #fff7e6;
+    color: #9a5b00 !important;
+}
+
 .link-form {
     align-items: center;
     display: flex;
@@ -240,6 +245,10 @@ body {
 
 .link-form .form-select {
     width: 96px;
+}
+
+.link-password-input {
+    width: 150px;
 }
 
 @media (max-width: 640px) {
@@ -266,6 +275,10 @@ body {
     }
 
     .link-form .form-select {
+        width: 100%;
+    }
+
+    .link-password-input {
         width: 100%;
     }
 }

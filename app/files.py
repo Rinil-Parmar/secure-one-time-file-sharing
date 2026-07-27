@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -33,11 +34,13 @@ def parse_expiration_minutes(value):
     return expiration_minutes
 
 
-def create_share_link(stored_file, expiration_minutes):
+def create_share_link(stored_file, expiration_minutes, password=None):
     token = secrets.token_urlsafe(32)
+    password_hash = generate_password_hash(password) if password else None
     share_link = ShareLink(
         file_id=stored_file.id,
         token_hash=hash_token(token),
+        password_hash=password_hash,
         expires_at=utc_now() + timedelta(minutes=expiration_minutes),
     )
     db.session.add(share_link)
@@ -49,6 +52,7 @@ def create_share_link(stored_file, expiration_minutes):
 def upload():
     uploaded_file = request.files.get("file")
     expiration_minutes = request.form.get("expiration_minutes", "60")
+    link_password = request.form.get("link_password", "").strip()
 
     if uploaded_file is None or uploaded_file.filename == "":
         flash("Please choose a file before uploading.", "error")
@@ -82,7 +86,7 @@ def upload():
     db.session.add(stored_file)
     db.session.flush()
 
-    token = create_share_link(stored_file, expiration_minutes)
+    token = create_share_link(stored_file, expiration_minutes, link_password)
     db.session.commit()
 
     download_url = url_for("files.download", token=token, _external=True)
@@ -99,11 +103,12 @@ def create_link(file_id):
         return redirect(url_for("dashboard"))
 
     expiration_minutes = parse_expiration_minutes(request.form.get("expiration_minutes", "60"))
+    link_password = request.form.get("link_password", "").strip()
     if expiration_minutes is None:
         flash("Expiration time must be between 1 minute and 24 hours.", "error")
         return redirect(url_for("dashboard"))
 
-    token = create_share_link(stored_file, expiration_minutes)
+    token = create_share_link(stored_file, expiration_minutes, link_password)
     db.session.commit()
 
     download_url = url_for("files.download", token=token, _external=True)
@@ -134,7 +139,7 @@ def revoke_link(link_id):
     return redirect(url_for("dashboard"))
 
 
-@files_bp.route("/download/<token>")
+@files_bp.route("/download/<token>", methods=["GET", "POST"])
 def download(token):
     share_link = ShareLink.query.filter_by(token_hash=hash_token(token)).first()
     if share_link is None:
@@ -157,6 +162,25 @@ def download(token):
             title="Link already used",
             message="This download link has already been used.",
         ), 410
+
+    if share_link.password_hash:
+        password = request.form.get("password", "")
+        if request.method == "GET":
+            return render_template(
+                "download.html",
+                title="Password required",
+                message="Enter the password provided by the sender to download this file.",
+                requires_password=True,
+            )
+
+        if not check_password_hash(share_link.password_hash, password):
+            return render_template(
+                "download.html",
+                title="Password required",
+                message="Incorrect password. Please try again.",
+                requires_password=True,
+                error=True,
+            ), 403
 
     stored_file = share_link.file
     stored_path = Path(current_app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename

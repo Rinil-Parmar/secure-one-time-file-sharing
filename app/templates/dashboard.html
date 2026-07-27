@@ -40,6 +40,12 @@
                     <div class="form-text">This setting will be used when the share link is created.</div>
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label fw-semibold" for="link_password">Optional link password</label>
+                    <input class="form-control form-control-lg" id="link_password" name="link_password" type="password" autocomplete="new-password">
+                    <div class="form-text">Leave blank if the receiver should only need the secure link.</div>
+                </div>
+
                 <button class="btn btn-primary btn-lg" type="submit">Upload and Create Link</button>
             </form>
         </section>
@@ -107,6 +113,8 @@
                                         <span class="file-badge badge-used">Inactive</span>
                                     {% elif latest_link.expires_at <= now %}
                                         <span class="file-badge badge-expired">Expired</span>
+                                    {% elif latest_link.password_hash %}
+                                        <span class="file-badge badge-locked">Password</span>
                                     {% else %}
                                         <span class="file-badge">Active</span>
                                     {% endif %}
@@ -121,6 +129,7 @@
                                         <option value="1440">24 hours</option>
                                     </select>
                                     <button class="btn btn-outline-primary btn-sm" type="submit">New Link</button>
+                                    <input class="form-control form-control-sm link-password-input" name="link_password" type="password" placeholder="Optional password" autocomplete="new-password">
                                 </form>
                                 {% if file.share_links %}
                                     {% set latest_link = file.share_links[-1] %}

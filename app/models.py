@@ -40,6 +40,7 @@ class ShareLink(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     file_id = db.Column(db.Integer, db.ForeignKey("stored_file.id"), nullable=False, index=True)
     token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     used_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)

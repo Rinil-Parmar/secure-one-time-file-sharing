@@ -8,7 +8,16 @@
         <div class="card-body p-4 p-md-5">
             <p class="eyebrow">Secure download</p>
             <h1 class="h3 mb-2">{{ title }}</h1>
-            <p class="text-secondary mb-0">{{ message }}</p>
+            <p class="text-secondary {% if requires_password %}mb-4{% else %}mb-0{% endif %}">{{ message }}</p>
+            {% if requires_password %}
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="password">Password</label>
+                        <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+                    </div>
+                    <button class="btn btn-primary btn-lg w-100" type="submit">Download File</button>
+                </form>
+            {% endif %}
         </div>
     </div>
 </section>

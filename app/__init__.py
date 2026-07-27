@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Flask, render_template
 from flask_login import LoginManager, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 
 from config import Config
 
@@ -46,6 +47,21 @@ def create_app():
         with app.app_context():
             Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
             db.create_all()
+            ensure_schema()
         print("Database tables created.")
 
+    @app.cli.command("upgrade-db")
+    def upgrade_db():
+        with app.app_context():
+            ensure_schema()
+        print("Database schema upgraded.")
+
     return app
+
+
+def ensure_schema():
+    columns = db.session.execute(text("PRAGMA table_info(share_link)")).fetchall()
+    column_names = {column[1] for column in columns}
+    if "password_hash" not in column_names:
+        db.session.execute(text("ALTER TABLE share_link ADD COLUMN password_hash VARCHAR(255)"))
+        db.session.commit()
