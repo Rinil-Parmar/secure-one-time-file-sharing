@@ -12,3 +12,5 @@ class Config:
         f"sqlite:///{BASE_DIR / 'instance' / 'app.db'}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    UPLOAD_FOLDER = BASE_DIR / "instance" / "uploads"
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024

@@ -7,7 +7,7 @@
     <div>
         <p class="eyebrow">Dashboard</p>
         <h1>Secure file sharing</h1>
-        <p class="text-secondary mb-0">Upload a confidential file, set an expiry window, and prepare a one-time secure link.</p>
+        <p class="text-secondary mb-0">Upload confidential files and manage secure sharing from one place.</p>
     </div>
     <span class="status-pill">Signed in as {{ current_user.username }}</span>
 </section>
@@ -18,7 +18,7 @@
             <div class="section-heading">
                 <div>
                     <h2>Upload file</h2>
-                    <p>Select a file and choose how long the secure link should remain valid.</p>
+                    <p>Select a file now. Expiring one-time links will be generated in the next sharing step.</p>
                 </div>
             </div>
 
@@ -37,9 +37,10 @@
                         <option value="240">4 hours</option>
                         <option value="1440">24 hours</option>
                     </select>
+                    <div class="form-text">This setting will be used when the share link is created.</div>
                 </div>
 
-                <button class="btn btn-primary btn-lg" type="submit">Prepare Secure Link</button>
+                <button class="btn btn-primary btn-lg" type="submit">Upload File</button>
             </form>
         </section>
     </div>
@@ -63,7 +64,7 @@
                     <strong>Complete</strong>
                 </div>
                 <div class="status-row">
-                    <span>Upload UI</span>
+                    <span>Upload storage</span>
                     <strong>Ready</strong>
                 </div>
             </div>
@@ -73,13 +74,27 @@
             <div class="section-heading">
                 <div>
                     <h2>Shared files</h2>
-                    <p>Uploaded files will appear here after storage is implemented.</p>
+                    <p>Uploaded files ready for secure link creation.</p>
                 </div>
             </div>
-            <div class="empty-state">
-                <strong>No files yet</strong>
-                <span>Your encrypted file list will show link status, expiry, and download state.</span>
-            </div>
+            {% if uploaded_files %}
+                <div class="file-list">
+                    {% for file in uploaded_files %}
+                        <div class="file-row">
+                            <div>
+                                <strong>{{ file.original_filename }}</strong>
+                                <span>Uploaded {{ file.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+                            </div>
+                            <span class="file-badge">Stored</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <strong>No files yet</strong>
+                    <span>Your uploaded files will appear here with link status and expiry details.</span>
+                </div>
+            {% endif %}
         </section>
     </div>
 </div>

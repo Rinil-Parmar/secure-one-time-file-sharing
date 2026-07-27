@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from flask import Flask, render_template
-from flask_login import LoginManager, login_required
+from flask_login import LoginManager, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
@@ -32,11 +34,17 @@ def create_app():
     @app.route("/")
     @login_required
     def dashboard():
-        return render_template("dashboard.html")
+        uploaded_files = sorted(
+            current_user.files,
+            key=lambda file: file.created_at,
+            reverse=True,
+        )
+        return render_template("dashboard.html", uploaded_files=uploaded_files)
 
     @app.cli.command("init-db")
     def init_db():
         with app.app_context():
+            Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
             db.create_all()
         print("Database tables created.")
 

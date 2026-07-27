@@ -177,6 +177,43 @@ body {
     color: #5d6d7e;
 }
 
+.file-list {
+    display: grid;
+    gap: 12px;
+}
+
+.file-row {
+    align-items: center;
+    border: 1px solid #e1e8ef;
+    border-radius: 8px;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 14px;
+}
+
+.file-row strong,
+.file-row span {
+    display: block;
+}
+
+.file-row span {
+    color: #5d6d7e;
+    font-size: 14px;
+    margin-top: 3px;
+}
+
+.file-badge {
+    background: #eef4fb;
+    border-radius: 999px;
+    color: #1769aa !important;
+    font-size: 13px !important;
+    font-weight: 700;
+    margin-top: 0 !important;
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
 @media (max-width: 640px) {
     .page-header {
         align-items: flex-start;
