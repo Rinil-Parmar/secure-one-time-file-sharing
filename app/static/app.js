@@ -34,3 +34,57 @@ document.querySelectorAll("[data-confirm]").forEach((form) => {
         }
     });
 });
+
+const formatRemainingTime = (milliseconds) => {
+    const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m`;
+    }
+    if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+    }
+    if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+};
+
+const updateLinkCountdowns = () => {
+    const now = Date.now();
+
+    document.querySelectorAll("[data-expires-at]").forEach((countdown) => {
+        const expiresAt = Date.parse(countdown.dataset.expiresAt);
+        if (Number.isNaN(expiresAt)) {
+            countdown.textContent = "Expiry unavailable";
+            return;
+        }
+
+        const remaining = expiresAt - now;
+        if (remaining <= 0) {
+            countdown.textContent = "Expired";
+            const status = countdown.closest(".file-item")?.querySelector("[data-live-link-status]");
+            if (status) {
+                status.innerHTML = '<span class="state-badge state-expired"><i class="bi bi-clock-history"></i> Expired</span>';
+                status.removeAttribute("data-live-link-status");
+            }
+            return;
+        }
+
+        countdown.textContent = `Expires in ${formatRemainingTime(remaining)}`;
+    });
+
+    const activeLinkCount = document.querySelector("[data-active-link-count]");
+    if (activeLinkCount) {
+        activeLinkCount.textContent = document.querySelectorAll("[data-live-link-status]").length;
+    }
+};
+
+if (document.querySelector("[data-expires-at]")) {
+    updateLinkCountdowns();
+    window.setInterval(updateLinkCountdowns, 1000);
+}

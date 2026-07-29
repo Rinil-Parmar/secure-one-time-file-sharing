@@ -48,6 +48,7 @@ class ShareLink(db.Model):
     password_hash = db.Column(db.String(255), nullable=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     used_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    revoked_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
 
     file = db.relationship("StoredFile", back_populates="share_links")

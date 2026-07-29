@@ -10,14 +10,15 @@ A Flask web application for encrypted one-time file sharing with expiring access
 - AES-GCM encryption before files are written to disk
 - Secure random download tokens generated with Python `secrets`
 - SHA-256 token hashes stored in SQLite instead of raw tokens
-- Configurable link expiration
+- Custom link expiration from 1 minute to 7 days with a live countdown
 - One-time download enforcement
 - Atomic replay prevention for concurrent download requests
 - Optional password-protected download links
 - CSRF protection for all state-changing forms
 - Authenticated encryption integrity checks and secure response headers
 - Owner controls for creating new links and revoking active links
-- Access logging for success, invalid token, expired, reused, wrong password, and missing file attempts
+- Clear access logging for completed downloads and blocked invalid, expired, already-used, revoked,
+  wrong-password, missing-file, and integrity-check attempts
 - Cleanup command for encrypted files that no longer have active links
 - Automated security tests and GitHub Actions CI
 

@@ -137,7 +137,9 @@ def create_app(config_override=None):
             1
             for stored_file in uploaded_files
             for link in stored_file.share_links
-            if link.used_at is None and link.expires_at > utc_now()
+            if link.used_at is None
+            and link.revoked_at is None
+            and link.expires_at > utc_now()
         )
         return render_template(
             "dashboard.html",
@@ -188,6 +190,9 @@ def ensure_schema():
     if "password_hash" not in column_names:
         db.session.execute(text("ALTER TABLE share_link ADD COLUMN password_hash VARCHAR(255)"))
         db.session.commit()
+    if "revoked_at" not in column_names:
+        db.session.execute(text("ALTER TABLE share_link ADD COLUMN revoked_at TIMESTAMP"))
+        db.session.commit()
 
 
 def cleanup_inactive_files(upload_folder=None):
@@ -208,7 +213,9 @@ def cleanup_inactive_files(upload_folder=None):
 
         now = now or utc_now()
         has_active_link = any(
-            link.used_at is None and link.expires_at > now
+            link.used_at is None
+            and link.revoked_at is None
+            and link.expires_at > now
             for link in stored_file.share_links
         )
         if has_active_link:

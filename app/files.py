@@ -19,6 +19,13 @@ from app.storage import StorageError, StorageNotFound, get_encrypted_storage
 
 files_bp = Blueprint("files", __name__)
 
+EXPIRATION_UNIT_MINUTES = {
+    "minutes": 1,
+    "hours": 60,
+    "days": 1440,
+}
+MAX_EXPIRATION_MINUTES = 7 * 24 * 60
+
 
 def hash_token(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -27,13 +34,35 @@ def hash_token(token):
 def parse_expiration_minutes(value):
     try:
         expiration_minutes = int(value)
-    except ValueError:
+    except (TypeError, ValueError):
         return None
 
-    if expiration_minutes < 1 or expiration_minutes > 1440:
+    if expiration_minutes < 1 or expiration_minutes > MAX_EXPIRATION_MINUTES:
         return None
 
     return expiration_minutes
+
+
+def parse_expiration(form):
+    """Return a validated duration in minutes.
+
+    expiration_minutes remains supported for existing clients and tests.
+    The UI submits a custom integer value together with minutes/hours/days.
+    """
+    custom_value = form.get("expiration_value")
+    if custom_value is None:
+        return parse_expiration_minutes(form.get("expiration_minutes", "60"))
+
+    try:
+        value = int(custom_value)
+    except (TypeError, ValueError):
+        return None
+
+    multiplier = EXPIRATION_UNIT_MINUTES.get(form.get("expiration_unit", "hours"))
+    if value < 1 or multiplier is None:
+        return None
+
+    return parse_expiration_minutes(value * multiplier)
 
 
 def create_share_link(stored_file, expiration_minutes, password=None):
@@ -68,7 +97,6 @@ def log_access(status, share_link=None):
 @login_required
 def upload():
     uploaded_file = request.files.get("file")
-    expiration_minutes = request.form.get("expiration_minutes", "60")
     link_password = request.form.get("link_password", "").strip()
 
     if uploaded_file is None or uploaded_file.filename == "":
@@ -79,9 +107,9 @@ def upload():
         flash("Link password must be 128 characters or fewer.", "error")
         return redirect(url_for("dashboard"))
 
-    expiration_minutes = parse_expiration_minutes(expiration_minutes)
+    expiration_minutes = parse_expiration(request.form)
     if expiration_minutes is None:
-        flash("Expiration time must be between 1 minute and 24 hours.", "error")
+        flash("Expiration must be between 1 minute and 7 days.", "error")
         return redirect(url_for("dashboard"))
 
     safe_name = secure_filename(uploaded_file.filename)
@@ -138,10 +166,10 @@ def create_link(file_id):
         flash("File not found.", "error")
         return redirect(url_for("dashboard"))
 
-    expiration_minutes = parse_expiration_minutes(request.form.get("expiration_minutes", "60"))
+    expiration_minutes = parse_expiration(request.form)
     link_password = request.form.get("link_password", "").strip()
     if expiration_minutes is None:
-        flash("Expiration time must be between 1 minute and 24 hours.", "error")
+        flash("Expiration must be between 1 minute and 7 days.", "error")
         return redirect(url_for("dashboard"))
 
     if not link_password_is_valid(link_password):
@@ -168,11 +196,11 @@ def revoke_link(link_id):
         flash("Share link not found.", "error")
         return redirect(url_for("dashboard"))
 
-    if share_link.used_at is not None:
+    if share_link.used_at is not None or share_link.revoked_at is not None:
         flash("That link is already inactive.", "error")
         return redirect(url_for("dashboard"))
 
-    share_link.used_at = utc_now()
+    share_link.revoked_at = utc_now()
     db.session.commit()
 
     flash("Secure link revoked.", "success")
@@ -191,6 +219,18 @@ def download(token):
             message="This download link is not recognized.",
         ), 404
 
+    if share_link.revoked_at is not None:
+        log_access("revoked", share_link)
+        db.session.commit()
+        return render_template(
+            "download.html",
+            title="This link was revoked",
+            message=(
+                "The sender disabled this secure link before it was used. "
+                "Ask the sender to create a new link if you still need the file."
+            ),
+        ), 410
+
     if share_link.expires_at <= utc_now():
         log_access("expired", share_link)
         db.session.commit()
@@ -205,8 +245,11 @@ def download(token):
         db.session.commit()
         return render_template(
             "download.html",
-            title="Link already used",
-            message="This download link has already been used.",
+            title="This one-time link has already been used",
+            message=(
+                "The file was downloaded successfully on an earlier attempt, so this link is now "
+                "permanently inactive. Ask the sender to create a new secure link."
+            ),
         ), 410
 
     if share_link.password_hash:
@@ -273,6 +316,7 @@ def download(token):
         .where(
             ShareLink.id == share_link.id,
             ShareLink.used_at.is_(None),
+            ShareLink.revoked_at.is_(None),
             ShareLink.expires_at > claimed_at,
         )
         .values(used_at=claimed_at)
@@ -281,15 +325,29 @@ def download(token):
     if claim.rowcount != 1:
         db.session.rollback()
         current_link = db.session.get(ShareLink, share_link.id)
-        status = "expired" if current_link.expires_at <= claimed_at else "reused"
+        if current_link.revoked_at is not None:
+            status = "revoked"
+        elif current_link.expires_at <= claimed_at:
+            status = "expired"
+        else:
+            status = "reused"
         log_access(status, current_link)
         db.session.commit()
-        title = "Link expired" if status == "expired" else "Link already used"
-        message = (
-            "This download link has expired."
-            if status == "expired"
-            else "This download link has already been used."
-        )
+        if status == "revoked":
+            title = "This link was revoked"
+            message = (
+                "The sender disabled this secure link before it was used. "
+                "Ask the sender to create a new link if you still need the file."
+            )
+        elif status == "expired":
+            title = "Link expired"
+            message = "This download link has expired."
+        else:
+            title = "This one-time link has already been used"
+            message = (
+                "The file was downloaded successfully on an earlier attempt, so this link is now "
+                "permanently inactive. Ask the sender to create a new secure link."
+            )
         return render_template("download.html", title=title, message=message), 410
 
     log_access("success", share_link)

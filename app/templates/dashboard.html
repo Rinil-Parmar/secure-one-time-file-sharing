@@ -28,7 +28,7 @@
         <span class="metric-icon metric-icon-green"><i class="bi bi-link-45deg"></i></span>
         <div>
             <span class="metric-label">Active links</span>
-            <strong>{{ active_links }}</strong>
+            <strong data-active-link-count>{{ active_links }}</strong>
             <small>Ready to use</small>
         </div>
     </article>
@@ -64,13 +64,19 @@
 
             <div class="form-grid">
                 <div>
-                    <label class="form-label" for="expiration_minutes">Link expires after</label>
-                    <select class="form-select" id="expiration_minutes" name="expiration_minutes">
-                        <option value="15">15 minutes</option>
-                        <option value="60" selected>1 hour</option>
-                        <option value="240">4 hours</option>
-                        <option value="1440">24 hours</option>
-                    </select>
+                    <label class="form-label" for="expiration_value">Link expires after</label>
+                    <div class="duration-control">
+                        <input class="form-control" id="expiration_value" name="expiration_value"
+                               type="number" min="1" value="1" required inputmode="numeric"
+                               aria-label="Expiration duration">
+                        <select class="form-select" id="expiration_unit" name="expiration_unit"
+                                aria-label="Expiration unit">
+                            <option value="minutes">Minutes</option>
+                            <option value="hours" selected>Hours</option>
+                            <option value="days">Days</option>
+                        </select>
+                    </div>
+                    <div class="form-text">Choose any duration from 1 minute to 7 days.</div>
                 </div>
                 <div>
                     <label class="form-label" for="link_password">
@@ -150,15 +156,30 @@
                     <div class="file-expiry">
                         <span>Latest link</span>
                         {% if latest_link %}
-                            <strong>{{ latest_link.expires_at.strftime("%b %d, %H:%M") }}</strong>
+                            {% if latest_link.revoked_at %}
+                                <strong>Revoked {{ latest_link.revoked_at.strftime("%b %d, %H:%M") }}</strong>
+                            {% elif latest_link.used_at %}
+                                <strong>Used {{ latest_link.used_at.strftime("%b %d, %H:%M") }}</strong>
+                            {% elif latest_link.expires_at <= now %}
+                                <strong>Expired {{ latest_link.expires_at.strftime("%b %d, %H:%M") }}</strong>
+                            {% else %}
+                                <strong class="link-countdown"
+                                        data-expires-at="{{ latest_link.expires_at.isoformat() }}Z"
+                                        title="Expires {{ latest_link.expires_at.strftime('%b %d, %Y at %H:%M UTC') }}">
+                                    Calculating…
+                                </strong>
+                                <small>{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</small>
+                            {% endif %}
                         {% else %}
                             <strong>Not created</strong>
                         {% endif %}
                     </div>
 
-                    <div class="file-status">
+                    <div class="file-status" {% if latest_link and latest_link.used_at is none and latest_link.revoked_at is none and latest_link.expires_at > now %}data-live-link-status{% endif %}>
                         {% if latest_link %}
-                            {% if latest_link.used_at %}
+                            {% if latest_link.revoked_at %}
+                                <span class="state-badge state-inactive"><i class="bi bi-x-circle"></i> Revoked</span>
+                            {% elif latest_link.used_at %}
                                 <span class="state-badge state-inactive"><i class="bi bi-slash-circle"></i> Inactive</span>
                             {% elif latest_link.expires_at <= now %}
                                 <span class="state-badge state-expired"><i class="bi bi-clock-history"></i> Expired</span>
@@ -181,13 +202,17 @@
                                 <form method="post" action="{{ url_for('files.create_link', file_id=file.id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <strong>Create a new link</strong>
-                                    <label for="expiry-{{ file.id }}">Expires after</label>
-                                    <select class="form-select form-select-sm" id="expiry-{{ file.id }}" name="expiration_minutes">
-                                        <option value="15">15 minutes</option>
-                                        <option value="60" selected>1 hour</option>
-                                        <option value="240">4 hours</option>
-                                        <option value="1440">24 hours</option>
-                                    </select>
+                                    <label for="expiry-value-{{ file.id }}">Expires after</label>
+                                    <div class="duration-control duration-control-sm">
+                                        <input class="form-control form-control-sm" id="expiry-value-{{ file.id }}"
+                                               name="expiration_value" type="number" min="1" value="1" required>
+                                        <select class="form-select form-select-sm" id="expiry-unit-{{ file.id }}"
+                                                name="expiration_unit" aria-label="Expiration unit">
+                                            <option value="minutes">Minutes</option>
+                                            <option value="hours" selected>Hours</option>
+                                            <option value="days">Days</option>
+                                        </select>
+                                    </div>
                                     <label for="password-{{ file.id }}">Password <span>(optional)</span></label>
                                     <input class="form-control form-control-sm" id="password-{{ file.id }}" name="link_password"
                                            type="password" placeholder="Link password" autocomplete="new-password">
@@ -195,7 +220,7 @@
                                         <i class="bi bi-link-45deg"></i> Create link
                                     </button>
                                 </form>
-                                {% if latest_link and latest_link.used_at is none and latest_link.expires_at > now %}
+                                {% if latest_link and latest_link.used_at is none and latest_link.revoked_at is none and latest_link.expires_at > now %}
                                     <form method="post" action="{{ url_for('files.revoke_link', link_id=latest_link.id) }}"
                                           data-confirm="Revoke this link? The recipient will no longer be able to use it.">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -232,12 +257,22 @@
         <div class="activity-list">
             {% for log in recent_logs %}
                 {% set is_success = log.status == "success" %}
+                {% set activity_labels = {
+                    "success": "Download completed",
+                    "reused": "Blocked — link already used",
+                    "revoked": "Blocked — link revoked",
+                    "expired": "Blocked — link expired",
+                    "wrong_password": "Blocked — incorrect password",
+                    "invalid_token": "Blocked — invalid link",
+                    "integrity_error": "Blocked — integrity check failed",
+                    "missing_file": "Blocked — file unavailable"
+                } %}
                 <article class="activity-item">
                     <span class="activity-icon {{ 'activity-success' if is_success else 'activity-warning' }}">
                         <i class="bi bi-{{ 'check2' if is_success else 'exclamation' }}"></i>
                     </span>
                     <div class="activity-main">
-                        <strong>{{ log.status.replace("_", " ").title() }}</strong>
+                        <strong>{{ activity_labels.get(log.status, log.status.replace("_", " ").title()) }}</strong>
                         <span>
                             {% if log.share_link and log.share_link.file %}
                                 {{ log.share_link.file.original_filename }}

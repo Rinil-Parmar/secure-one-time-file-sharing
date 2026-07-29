@@ -1,4 +1,5 @@
 from datetime import timedelta
+from io import BytesIO
 from pathlib import Path
 import re
 from threading import Barrier, Thread
@@ -86,6 +87,36 @@ def test_valid_download_works_once(client):
     assert first.data == payload
     assert second.status_code == 410
     assert b"already been used" in second.data
+    assert b"Ask the sender to create a new secure link" in second.data
+
+
+def test_custom_expiration_accepts_units_and_enforces_seven_day_limit(client):
+    register_and_login(client)
+    before = utc_now()
+    response = client.post(
+        "/upload",
+        data={
+            "file": (BytesIO(b"custom expiry"), "custom.txt"),
+            "expiration_value": "2",
+            "expiration_unit": "hours",
+            "link_password": "",
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    link = ShareLink.query.one()
+    assert response.status_code == 200
+    assert before + timedelta(minutes=119) <= link.expires_at <= before + timedelta(minutes=121)
+    assert b"data-expires-at" in response.data
+
+    rejected = client.post(
+        f"/files/{link.file_id}/share",
+        data={"expiration_value": "8", "expiration_unit": "days"},
+        follow_redirects=True,
+    )
+    assert b"between 1 minute and 7 days" in rejected.data
+    assert ShareLink.query.count() == 1
 
 
 def test_invalid_expired_and_revoked_links_are_rejected(client):
@@ -115,7 +146,11 @@ def test_invalid_expired_and_revoked_links_are_rejected(client):
     revoked_download = client.get(f"/download/{fresh_token}")
 
     assert b"Secure link revoked" in revoked.data
+    assert fresh_link.revoked_at is not None
+    assert fresh_link.used_at is None
     assert revoked_download.status_code == 410
+    assert b"sender disabled this secure link" in revoked_download.data
+    assert AccessLog.query.order_by(AccessLog.id.desc()).first().status == "revoked"
 
 
 def test_password_protected_link_rejects_wrong_password(client):
