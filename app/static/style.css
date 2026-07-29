@@ -691,11 +691,16 @@ a {
     min-height: 34px;
 }
 
-.revoke-action {
+.revoke-action,
+.delete-action {
     border-top: 1px solid var(--line);
     margin-top: 12px;
     padding-top: 12px;
     text-decoration: none;
+}
+
+.delete-action {
+    margin-top: 8px;
 }
 
 .activity-list {

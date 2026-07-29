@@ -35,6 +35,31 @@ document.querySelectorAll("[data-confirm]").forEach((form) => {
     });
 });
 
+const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+document.querySelectorAll("[data-time-zone]").forEach((label) => {
+    label.textContent = browserTimeZone ? browserTimeZone.replaceAll("_", " ") : "your device time zone";
+});
+
+document.querySelectorAll("[data-local-time]").forEach((element) => {
+    const timestamp = Date.parse(element.dateTime);
+    if (Number.isNaN(timestamp)) {
+        return;
+    }
+
+    const full = element.dataset.localTime === "full";
+    const formatter = new Intl.DateTimeFormat(undefined, {
+        year: full ? "numeric" : undefined,
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+    });
+    element.textContent = formatter.format(timestamp);
+    element.title = `Displayed in ${browserTimeZone || "your device time zone"}`;
+});
+
 const formatRemainingTime = (milliseconds) => {
     const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
     const days = Math.floor(totalSeconds / 86400);

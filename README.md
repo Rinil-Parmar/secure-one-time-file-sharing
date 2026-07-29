@@ -17,6 +17,8 @@ A Flask web application for encrypted one-time file sharing with expiring access
 - CSRF protection for all state-changing forms
 - Authenticated encryption integrity checks and secure response headers
 - Owner controls for creating new links and revoking active links
+- Owner-only permanent deletion of encrypted files, links, and related audit records
+- Browser-local timestamps with automatic daylight-saving adjustment
 - Clear access logging for completed downloads and blocked invalid, expired, already-used, revoked,
   wrong-password, missing-file, and integrity-check attempts
 - Cleanup command for encrypted files that no longer have active links

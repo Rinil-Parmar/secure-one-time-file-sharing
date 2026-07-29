@@ -183,6 +183,47 @@ def test_access_logs_are_recorded(client):
     assert statuses == ["invalid_token", "wrong_password", "success", "reused"]
 
 
+def test_owner_can_permanently_delete_encrypted_file(client, app):
+    register_and_login(client)
+    _, token = upload_file(client, filename="delete-me.pdf", payload=b"private pdf")
+    stored_file = StoredFile.query.one()
+    stored_path = Path(app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
+
+    client.get(f"/download/{token}")
+    assert stored_path.exists()
+    assert AccessLog.query.count() == 1
+
+    response = client.post(
+        f"/files/{stored_file.id}/delete",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"permanently deleted" in response.data
+    assert not stored_path.exists()
+    assert StoredFile.query.count() == 0
+    assert ShareLink.query.count() == 0
+    assert AccessLog.query.count() == 0
+
+
+def test_user_cannot_delete_another_owners_file(client, app):
+    register_and_login(client, username="alice")
+    upload_file(client, filename="alice.pdf", payload=b"alice private")
+    stored_file = StoredFile.query.one()
+    stored_path = Path(app.config["UPLOAD_FOLDER"]) / stored_file.stored_filename
+
+    client.post("/logout")
+    register_and_login(client, username="bob")
+    response = client.post(
+        f"/files/{stored_file.id}/delete",
+        follow_redirects=True,
+    )
+
+    assert b"do not have permission" in response.data
+    assert stored_path.exists()
+    assert db.session.get(StoredFile, stored_file.id) is not None
+
+
 def test_modified_ciphertext_is_rejected(client, app):
     register_and_login(client)
     _, token = upload_file(client, payload=b"integrity protected")

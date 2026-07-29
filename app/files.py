@@ -184,6 +184,37 @@ def create_link(file_id):
     return redirect(url_for("dashboard"))
 
 
+@files_bp.route("/files/<int:file_id>/delete", methods=["POST"])
+@login_required
+def delete_file(file_id):
+    stored_file = StoredFile.query.filter_by(
+        id=file_id,
+        owner_id=current_user.id,
+    ).first()
+    if stored_file is None:
+        flash("File not found or you do not have permission to delete it.", "error")
+        return redirect(url_for("dashboard"))
+
+    try:
+        get_encrypted_storage().delete(stored_file.stored_filename)
+    except (OSError, StorageError):
+        current_app.logger.exception("Could not delete encrypted file %s", stored_file.id)
+        flash("The encrypted file could not be deleted. Please try again.", "error")
+        return redirect(url_for("dashboard"))
+
+    db.session.delete(stored_file)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Could not delete file metadata %s", stored_file.id)
+        flash("The file metadata could not be deleted. Please try again.", "error")
+        return redirect(url_for("dashboard"))
+
+    flash("File and all associated share links were permanently deleted.", "success")
+    return redirect(url_for("dashboard"))
+
+
 @files_bp.route("/links/<int:link_id>/revoke", methods=["POST"])
 @login_required
 def revoke_link(link_id):

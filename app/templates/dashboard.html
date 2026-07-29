@@ -133,7 +133,7 @@
         <div>
             <span class="section-kicker">Your vault</span>
             <h2>Shared files</h2>
-            <p>Manage encrypted files and their latest download links.</p>
+            <p>Manage encrypted files and their latest links. Times use <span data-time-zone>your device time zone</span>.</p>
         </div>
         {% if uploaded_files %}
             <span class="count-badge">{{ uploaded_files|length }} file{{ '' if uploaded_files|length == 1 else 's' }}</span>
@@ -149,7 +149,8 @@
                         <span class="file-icon"><i class="bi bi-file-earmark-lock2"></i></span>
                         <div>
                             <strong title="{{ file.original_filename }}">{{ file.original_filename }}</strong>
-                            <span>Uploaded <time datetime="{{ file.created_at.isoformat() }}">{{ file.created_at.strftime("%b %d, %Y at %H:%M") }}</time></span>
+                            <span>Uploaded <time datetime="{{ file.created_at.isoformat() }}Z"
+                                                 data-local-time="full">{{ file.created_at.strftime("%b %d, %Y at %H:%M") }} UTC</time></span>
                         </div>
                     </div>
 
@@ -157,18 +158,22 @@
                         <span>Latest link</span>
                         {% if latest_link %}
                             {% if latest_link.revoked_at %}
-                                <strong>Revoked {{ latest_link.revoked_at.strftime("%b %d, %H:%M") }}</strong>
+                                <strong>Revoked <time datetime="{{ latest_link.revoked_at.isoformat() }}Z"
+                                                      data-local-time="compact">{{ latest_link.revoked_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% elif latest_link.used_at %}
-                                <strong>Used {{ latest_link.used_at.strftime("%b %d, %H:%M") }}</strong>
+                                <strong>Used <time datetime="{{ latest_link.used_at.isoformat() }}Z"
+                                                   data-local-time="compact">{{ latest_link.used_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% elif latest_link.expires_at <= now %}
-                                <strong>Expired {{ latest_link.expires_at.strftime("%b %d, %H:%M") }}</strong>
+                                <strong>Expired <time datetime="{{ latest_link.expires_at.isoformat() }}Z"
+                                                      data-local-time="compact">{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% else %}
                                 <strong class="link-countdown"
                                         data-expires-at="{{ latest_link.expires_at.isoformat() }}Z"
                                         title="Expires {{ latest_link.expires_at.strftime('%b %d, %Y at %H:%M UTC') }}">
                                     Calculating…
                                 </strong>
-                                <small>{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</small>
+                                <small><time datetime="{{ latest_link.expires_at.isoformat() }}Z"
+                                             data-local-time="compact">{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</time></small>
                             {% endif %}
                         {% else %}
                             <strong>Not created</strong>
@@ -229,6 +234,13 @@
                                         </button>
                                     </form>
                                 {% endif %}
+                                <form method="post" action="{{ url_for('files.delete_file', file_id=file.id) }}"
+                                      data-confirm="Permanently delete {{ file.original_filename }}? The encrypted file, every share link, and its access history will be removed. This cannot be undone.">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-link text-danger btn-sm w-100 delete-action" type="submit">
+                                        <i class="bi bi-trash3"></i> Delete file permanently
+                                    </button>
+                                </form>
                             </div>
                         </details>
                     </div>
@@ -282,7 +294,8 @@
                         </span>
                     </div>
                     <span class="activity-ip"><i class="bi bi-globe2"></i> {{ log.ip_address or "Unknown IP" }}</span>
-                    <time datetime="{{ log.created_at.isoformat() }}">{{ log.created_at.strftime("%b %d, %H:%M") }}</time>
+                    <time datetime="{{ log.created_at.isoformat() }}Z"
+                          data-local-time="compact">{{ log.created_at.strftime("%b %d, %H:%M") }} UTC</time>
                 </article>
             {% endfor %}
         </div>
