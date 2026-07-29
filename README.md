@@ -1,171 +1,278 @@
-# Secure One-Time File Sharing
+# SecureShare
 
-A Flask web application for encrypted one-time file sharing with expiring access tokens, optional link passwords, and access-attempt logging.
+SecureShare is a Flask web application for sharing confidential files through
+encrypted, expiring, one-time download links. Files are encrypted before
+storage, raw access tokens are never saved, and every successful or rejected
+access attempt is recorded.
 
-## Features
+## Live Application
 
-- User registration, login, logout, and protected dashboard
-- Secure upload storage outside the public static folder
-- Local filesystem storage for development and private S3-compatible storage in production
-- AES-GCM encryption before files are written to disk
-- Secure random download tokens generated with Python `secrets`
-- SHA-256 token hashes stored in SQLite instead of raw tokens
-- Custom link expiration from 1 minute to 7 days with a live countdown
-- One-time download enforcement
-- Atomic replay prevention for concurrent download requests
-- Optional password-protected download links
-- CSRF protection for all state-changing forms
-- Authenticated encryption integrity checks and secure response headers
-- Owner controls for creating new links and revoking active links
-- Owner-only permanent deletion of encrypted files, links, and related audit records
-- Browser-local timestamps with automatic daylight-saving adjustment
-- Clear access logging for completed downloads and blocked invalid, expired, already-used, revoked,
-  wrong-password, missing-file, and integrity-check attempts
-- Cleanup command for encrypted files that no longer have active links
+**[Open the deployed SecureShare application](https://secure-one-time-file-sharing.onrender.com/)**
+
+The production environment runs on Render with Supabase PostgreSQL and a
+private Supabase Storage bucket. Render's free service may require a short
+cold-start delay after inactivity.
+
+## Main Features
+
+- User registration, login, logout, and an owner-only dashboard
+- Maximum upload size of 16 MB
+- AES-GCM encryption before server-side storage
+- Local encrypted storage during development
+- Private S3-compatible Supabase Storage in production
+- Cryptographically secure 256-bit access tokens
+- SHA-256 token hashes stored instead of raw download tokens
+- Custom expiration from 1 minute to 7 days
+- Live expiration countdown and browser-local timestamps
+- Atomic one-time download enforcement
+- Concurrent replay prevention
+- Optional password protection with Werkzeug hashing
+- New-link and revoke-link owner controls
+- Permanent owner-only deletion of encrypted files and associated records
+- Clear rejection pages for invalid, expired, revoked, and used links
+- Audit logging for successful and rejected access attempts
+- AES-GCM integrity verification for modified ciphertext
+- CSRF protection and secure production response headers
 - Automated security tests and GitHub Actions CI
+
+## Architecture
+
+```text
+Browser
+   |
+   | HTTPS
+   v
+Render Web Service
+Flask + Gunicorn
+   |
+   +---- Supabase PostgreSQL
+   |     Users, file metadata, token hashes, link state, audit logs
+   |
+   +---- Private Supabase Storage bucket
+         AES-GCM ciphertext only
+```
+
+For local development, SQLite replaces PostgreSQL and `instance/uploads/`
+replaces Supabase Storage.
+
+## Secure File Flow
+
+```text
+Authenticated owner uploads a file
+              |
+              v
+Server validates and encrypts it with AES-GCM
+              |
+              v
+Ciphertext is stored; metadata is saved separately
+              |
+              v
+Random token is generated; only its SHA-256 hash is stored
+              |
+              v
+Recipient opens the temporary link
+              |
+              v
+Token, expiry, revocation, and optional password are validated
+              |
+              v
+File is integrity-checked, decrypted in memory, and downloaded once
+              |
+              v
+Atomic database update permanently consumes the link
+```
 
 ## Technology
 
-- Python
-- Flask
-- SQLite
-- Flask-SQLAlchemy
-- Flask-Login
-- Flask-WTF
-- Werkzeug password hashing
-- `cryptography` AES-GCM
-- Supabase PostgreSQL and private Storage for cloud deployment
-- Bootstrap UI
-- pytest
+| Layer | Technology |
+| --- | --- |
+| Backend | Python 3.12, Flask, Gunicorn |
+| Authentication | Flask-Login, Werkzeug password hashing |
+| Forms and CSRF | Flask-WTF |
+| Data access | Flask-SQLAlchemy |
+| Local database | SQLite |
+| Production database | Supabase PostgreSQL |
+| Encryption | `cryptography` AES-GCM |
+| Production file storage | Supabase Storage through its S3-compatible API |
+| Frontend | HTML, Bootstrap, custom CSS and JavaScript |
+| Testing | pytest, GitHub Actions |
+| Hosting | Render |
 
 ## Local Setup
 
-```powershell
-cd D:\NDS\NetworkingProject\secure-one-time-file-share
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-If the virtual environment does not exist:
+### Windows PowerShell
 
 ```powershell
+git clone https://github.com/Rinil-Parmar/secure-one-time-file-sharing.git
+cd secure-one-time-file-sharing
+
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
+
+Copy-Item .env.example .env
+flask --app run:app init-db
+python run.py
 ```
 
-## Environment Variables
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-Copy `.env.example` to `.env`, then replace both secrets before a proper demo or deployment:
+### Ubuntu
 
-```text
-APP_ENV=development
-FLASK_DEBUG=0
-SECRET_KEY=replace-with-a-long-random-secret
-ENCRYPTION_KEY=replace-with-a-long-random-encryption-secret
+```bash
+git clone https://github.com/Rinil-Parmar/secure-one-time-file-sharing.git
+cd secure-one-time-file-sharing
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+flask --app run:app init-db
+python run.py
 ```
 
-Do not commit `.env`. It is ignored by Git.
+## Configuration
 
-## Database Setup
+Copy `.env.example` to `.env` and replace its development secrets. Never commit
+the `.env` file.
+
+| Variable | Purpose |
+| --- | --- |
+| `APP_ENV` | Use `development` locally and `production` on Render |
+| `SECRET_KEY` | Signs Flask sessions and CSRF tokens |
+| `ENCRYPTION_KEY` | Derives the 256-bit AES encryption key |
+| `DATABASE_URL` | SQLite locally or Supabase PostgreSQL in production |
+| `STORAGE_BACKEND` | `local` or `s3` |
+| `STORAGE_BUCKET` | Private S3 bucket name |
+| `S3_ENDPOINT_URL` | Supabase S3-compatible endpoint |
+| `S3_ACCESS_KEY_ID` | Server-side S3 access-key ID |
+| `S3_SECRET_ACCESS_KEY` | Server-side S3 secret |
+| `S3_REGION` | Supabase project region |
+| `BEHIND_PROXY` | Set to `1` behind Render's HTTPS proxy |
+
+Changing or losing `ENCRYPTION_KEY` makes previously uploaded ciphertext
+impossible to decrypt. Store the production key securely.
+
+## Database and Maintenance Commands
 
 ```powershell
-.\.venv\Scripts\flask.exe --app run.py init-db
-.\.venv\Scripts\flask.exe --app run.py upgrade-db
+flask --app run:app init-db
+flask --app run:app upgrade-db
+flask --app run:app cleanup-files
+flask --app run:app routes
 ```
 
-The SQLite database is stored at:
+- `init-db` creates missing tables and applies supported schema upgrades.
+- `upgrade-db` applies supported upgrades to an existing database.
+- `cleanup-files` removes encrypted files that have no active links.
 
-```text
-instance/app.db
-```
+Local runtime data is written to `instance/` and is intentionally excluded from
+Git.
 
-Uploaded encrypted files are stored at:
-
-```text
-instance/uploads/
-```
-
-Both are intentionally ignored by Git.
-
-## Run App
+## Automated Tests
 
 ```powershell
-.\.venv\Scripts\python.exe run.py
+python -m pytest -q
 ```
 
-Open:
+Current result:
 
 ```text
-http://127.0.0.1:5000
+15 passed
 ```
 
-Debug mode is off by default. Never enable the Flask debugger for an Ubuntu
-demonstration or production deployment. When `APP_ENV=production`, the
-application refuses to start with the development fallback secrets.
+The test suite covers:
 
-## Test
+- Registration, authentication, and dashboard authorization
+- CSRF rejection
+- Production secret validation
+- Encryption at rest and token hashing
+- Custom expiration validation
+- Cross-database UTC timestamp handling
+- Valid one-time downloads and replay rejection
+- Modified and expired tokens
+- Revocation
+- Optional link passwords
+- Audit logging
+- AES-GCM integrity failures
+- Concurrent download attempts
+- Owner-only deletion
+- Automatic cleanup
 
-```powershell
-.\.venv\Scripts\pytest.exe -q
-```
+## Production Deployment
 
-The suite covers authentication, CSRF, encryption at rest, integrity failure,
-one-time use, concurrent replay attempts, expiration, revocation, password
-protection, audit logs, and cleanup.
+Render deploys the `feature/render-supabase-deployment` branch. Application
+features are developed and tested on `main`, then promoted to the deployment
+branch.
 
 ```text
-11 passed
+main
+  |
+  | merge after testing
+  v
+feature/render-supabase-deployment
+  |
+  | automatic Render deployment
+  v
+https://secure-one-time-file-sharing.onrender.com/
 ```
 
-GitHub Actions runs the same test suite on every push and pull request to `main`.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete Render and Supabase setup,
+required environment variables, private bucket configuration, and deployment
+verification procedure.
 
-## Render and Supabase
+## Manual Security Demonstration
 
-The cloud deployment uses Render for Flask compute and Supabase for persistent
-PostgreSQL data and private encrypted-object storage. See `DEPLOYMENT.md` for
-the complete setup procedure.
-
-## Demo Flow
-
-1. Register a user.
-2. Log in.
-3. Upload a small confidential file.
-4. Copy the generated secure download link from the success message.
-5. Open the encrypted file in `instance/uploads/` and show that the plaintext is unreadable.
-6. Open the generated download link and download the original file.
-7. Open the same link again and show that it is rejected as already used.
-8. Modify the token in the URL and show invalid-token rejection.
-9. Create a new password-protected link from the dashboard.
-10. Try the wrong password and show rejection.
-11. Try the correct password and download successfully.
-12. Create another link, revoke it, and show that it no longer downloads.
-13. Show recent access attempts on the dashboard.
-14. Run cleanup:
-
-```powershell
-.\.venv\Scripts\flask.exe --app run.py cleanup-files
-```
+1. Register and log in.
+2. Upload a small confidential file.
+3. Confirm that only encrypted ciphertext exists in server storage.
+4. Copy the generated one-time link.
+5. Try an incorrect link password and confirm rejection.
+6. Download with the correct password.
+7. Open the same link again and confirm replay rejection.
+8. Modify the token and confirm invalid-token rejection.
+9. Create another link and revoke it.
+10. Create a short-lived link and demonstrate expiration.
+11. Review the dashboard audit trail.
+12. Permanently delete the encrypted file.
 
 ## Security Notes
 
-- Raw download tokens are shown only once and are never stored.
-- Passwords are stored as hashes.
-- Link passwords are stored as hashes.
-- Files are encrypted before server-side storage.
-- Decrypted files are streamed from memory during download, not written to disk.
-- Used, expired, revoked, and invalid links are rejected.
-- Concurrent requests are resolved atomically so only one download can succeed.
-- AES-GCM rejects modified or corrupted ciphertext.
-- CSRF tokens protect authentication, upload, link, revoke, and logout forms.
-- Security headers prevent framing, referrer leakage, and MIME sniffing.
-- Access logs do not store raw tokens, passwords, or encryption keys.
+- Files are encrypted before storage and decrypted only in memory.
+- AES-GCM provides confidentiality and authenticated integrity.
+- Raw download tokens, passwords, and encryption keys are never written to the
+  database or audit log.
+- One-time consumption uses an atomic conditional database update.
+- Used, expired, revoked, modified, and unknown links are rejected.
+- File and link operations require owner authorization.
+- Access passwords and account passwords are stored as salted hashes.
+- Forms use CSRF tokens; logout, revoke, and deletion use POST requests.
+- Production cookies are secure and HTTP-only.
+- Security headers restrict framing, MIME sniffing, permissions, referrers, and
+  external content sources.
 
-## Useful Commands
+## Project Structure
 
-```powershell
-git status
-git log --oneline
-.\.venv\Scripts\flask.exe --app run.py routes
-.\.venv\Scripts\pytest.exe -q
+```text
+secure-one-time-file-sharing/
+|-- app/
+|   |-- templates/       HTML pages
+|   |-- static/          CSS and JavaScript
+|   |-- auth.py          Registration and authentication
+|   |-- files.py         Upload, links, downloads, logs, deletion
+|   |-- models.py        SQLAlchemy models and UTC handling
+|   |-- crypto_utils.py  AES-GCM encryption and decryption
+|   `-- storage.py       Local and S3 storage backends
+|-- tests/               Security and lifecycle tests
+|-- config.py            Environment-based configuration
+|-- run.py               Application entry point
+|-- render.yaml          Render Blueprint configuration
+|-- DEPLOYMENT.md        Production deployment guide
+`-- requirements.txt     Python dependencies
 ```
+
+## License
+
+This repository is an academic security project. No open-source license has
+been assigned.
