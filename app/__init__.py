@@ -190,8 +190,32 @@ def ensure_schema():
     if "password_hash" not in column_names:
         db.session.execute(text("ALTER TABLE share_link ADD COLUMN password_hash VARCHAR(255)"))
         db.session.commit()
-    if "revoked_at" not in column_names:
-        db.session.execute(text("ALTER TABLE share_link ADD COLUMN revoked_at TIMESTAMP"))
+    revoked_column = next(
+        (column for column in inspector.get_columns("share_link") if column["name"] == "revoked_at"),
+        None,
+    )
+    if revoked_column is None:
+        timestamp_type = (
+            "TIMESTAMP WITH TIME ZONE"
+            if db.engine.dialect.name == "postgresql"
+            else "TIMESTAMP"
+        )
+        db.session.execute(
+            text(f"ALTER TABLE share_link ADD COLUMN revoked_at {timestamp_type}")
+        )
+        db.session.commit()
+    elif (
+        db.engine.dialect.name == "postgresql"
+        and not getattr(revoked_column["type"], "timezone", False)
+    ):
+        # Earlier deployments created this as a naive UTC column.
+        db.session.execute(
+            text(
+                "ALTER TABLE share_link "
+                "ALTER COLUMN revoked_at TYPE TIMESTAMP WITH TIME ZONE "
+                "USING revoked_at AT TIME ZONE 'UTC'"
+            )
+        )
         db.session.commit()
 
 

@@ -1,19 +1,52 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import DateTime
+from sqlalchemy.types import TypeDecorator
 
 from app import db
 
 
 def utc_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc)
+
+
+class UTCDateTime(TypeDecorator):
+    """Store UTC consistently and always return timezone-aware UTC values."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(DateTime(timezone=True))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+
+        # SQLite has no native timezone-aware datetime type.
+        if dialect.name == "sqlite":
+            return value.replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, _dialect):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at = db.Column(UTCDateTime(), default=utc_now, nullable=False)
 
     files = db.relationship("StoredFile", back_populates="owner", cascade="all, delete-orphan")
 
@@ -27,7 +60,7 @@ class StoredFile(db.Model):
     original_filename = db.Column(db.String(255), nullable=False)
     stored_filename = db.Column(db.String(255), nullable=False, unique=True)
     nonce = db.Column(db.String(64), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at = db.Column(UTCDateTime(), default=utc_now, nullable=False)
 
     owner = db.relationship("User", back_populates="files")
     share_links = db.relationship(
@@ -46,10 +79,10 @@ class ShareLink(db.Model):
     file_id = db.Column(db.Integer, db.ForeignKey("stored_file.id"), nullable=False, index=True)
     token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=True)
-    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
-    used_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    revoked_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
+    expires_at = db.Column(UTCDateTime(), nullable=False)
+    used_at = db.Column(UTCDateTime(), nullable=True)
+    revoked_at = db.Column(UTCDateTime(), nullable=True)
+    created_at = db.Column(UTCDateTime(), default=utc_now, nullable=False)
 
     file = db.relationship("StoredFile", back_populates="share_links")
     access_logs = db.relationship("AccessLog", back_populates="share_link", cascade="all, delete-orphan")
@@ -64,7 +97,7 @@ class AccessLog(db.Model):
     status = db.Column(db.String(40), nullable=False, index=True)
     ip_address = db.Column(db.String(80), nullable=True)
     user_agent = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at = db.Column(UTCDateTime(), default=utc_now, nullable=False)
 
     share_link = db.relationship("ShareLink", back_populates="access_logs")
 

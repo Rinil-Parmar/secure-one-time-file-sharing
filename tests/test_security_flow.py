@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 import re
@@ -117,6 +117,19 @@ def test_custom_expiration_accepts_units_and_enforces_seven_day_limit(client):
     )
     assert b"between 1 minute and 7 days" in rejected.data
     assert ShareLink.query.count() == 1
+
+
+def test_database_datetimes_are_always_timezone_aware_utc(client):
+    register_and_login(client)
+    upload_file(client)
+    link_id = ShareLink.query.one().id
+
+    db.session.expire_all()
+    link = db.session.get(ShareLink, link_id)
+
+    assert link.expires_at.tzinfo is not None
+    assert link.expires_at.utcoffset() == timezone.utc.utcoffset(link.expires_at)
+    assert client.get("/").status_code == 200
 
 
 def test_invalid_expired_and_revoked_links_are_rejected(client):

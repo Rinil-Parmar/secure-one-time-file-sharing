@@ -149,7 +149,7 @@
                         <span class="file-icon"><i class="bi bi-file-earmark-lock2"></i></span>
                         <div>
                             <strong title="{{ file.original_filename }}">{{ file.original_filename }}</strong>
-                            <span>Uploaded <time datetime="{{ file.created_at.isoformat() }}Z"
+                            <span>Uploaded <time datetime="{{ file.created_at.isoformat() }}"
                                                  data-local-time="full">{{ file.created_at.strftime("%b %d, %Y at %H:%M") }} UTC</time></span>
                         </div>
                     </div>
@@ -158,21 +158,21 @@
                         <span>Latest link</span>
                         {% if latest_link %}
                             {% if latest_link.revoked_at %}
-                                <strong>Revoked <time datetime="{{ latest_link.revoked_at.isoformat() }}Z"
+                                <strong>Revoked <time datetime="{{ latest_link.revoked_at.isoformat() }}"
                                                       data-local-time="compact">{{ latest_link.revoked_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% elif latest_link.used_at %}
-                                <strong>Used <time datetime="{{ latest_link.used_at.isoformat() }}Z"
+                                <strong>Used <time datetime="{{ latest_link.used_at.isoformat() }}"
                                                    data-local-time="compact">{{ latest_link.used_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% elif latest_link.expires_at <= now %}
-                                <strong>Expired <time datetime="{{ latest_link.expires_at.isoformat() }}Z"
+                                <strong>Expired <time datetime="{{ latest_link.expires_at.isoformat() }}"
                                                       data-local-time="compact">{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</time></strong>
                             {% else %}
                                 <strong class="link-countdown"
-                                        data-expires-at="{{ latest_link.expires_at.isoformat() }}Z"
+                                        data-expires-at="{{ latest_link.expires_at.isoformat() }}"
                                         title="Expires {{ latest_link.expires_at.strftime('%b %d, %Y at %H:%M UTC') }}">
                                     Calculating…
                                 </strong>
-                                <small><time datetime="{{ latest_link.expires_at.isoformat() }}Z"
+                                <small><time datetime="{{ latest_link.expires_at.isoformat() }}"
                                              data-local-time="compact">{{ latest_link.expires_at.strftime("%b %d, %H:%M") }} UTC</time></small>
                             {% endif %}
                         {% else %}
@@ -294,7 +294,7 @@
                         </span>
                     </div>
                     <span class="activity-ip"><i class="bi bi-globe2"></i> {{ log.ip_address or "Unknown IP" }}</span>
-                    <time datetime="{{ log.created_at.isoformat() }}Z"
+                    <time datetime="{{ log.created_at.isoformat() }}"
                           data-local-time="compact">{{ log.created_at.strftime("%b %d, %H:%M") }} UTC</time>
                 </article>
             {% endfor %}
